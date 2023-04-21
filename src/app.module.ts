@@ -8,11 +8,11 @@ import { TasksModule } from './modules/tasks.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'db',
+      host: process.env.POSTGRES_HOST,
       port: 5432,
-      username: 'postgres',
-      password: 'postgres',
-      database: 'task_suggestion',
+      username: process.env.DATABASE_USER,
+      password: process.env.DATABASE_PASSWORD,
+      database: process.env.DATABASE_NAME,
       entities: [User],
       synchronize: true,
       autoLoadEntities: true,
