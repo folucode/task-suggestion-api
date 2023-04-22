@@ -61,7 +61,7 @@ export class TasksService {
     return await this.tasksRepository.save({ taskID: id, ...task });
   }
 
-  async suggestTask(): Promise<Task | string> {
+  async suggestTask(): Promise<Task | object> {
     const tasks = await this.tasksRepository.find({
       select: ['taskID', 'note', 'status', 'title'],
       where: {
@@ -69,7 +69,7 @@ export class TasksService {
       },
     });
 
-    if (tasks.length < 1) return 'no task';
+    if (tasks.length < 1) return { status: 'success', message: 'no task' };
 
     const randomNumber = Math.floor(Math.random() * tasks.length);
     const suggested = tasks[randomNumber];
