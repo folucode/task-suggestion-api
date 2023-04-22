@@ -9,7 +9,7 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get('suggest')
-  suggestTask(): Promise<Task | string> {
+  suggestTask(): Promise<Task | object> {
     return this.tasksService.suggestTask();
   }
 
