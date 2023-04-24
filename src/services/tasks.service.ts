@@ -76,4 +76,8 @@ export class TasksService {
 
     return suggested;
   }
+
+  async getCompletedTasks(): Promise<Task[]> {
+    return await this.tasksRepository.find();
+  }
 }

@@ -25,6 +25,8 @@ export class TasksController {
 
   @Post()
   create(@Body() createTaskDto: CreateTaskDto): Promise<Task> {
+    console.log(createTaskDto);
+
     return this.tasksService.create(createTaskDto);
   }
 
@@ -42,5 +44,10 @@ export class TasksController {
     @Body('note') note: string,
   ): Promise<Task> {
     return this.tasksService.markAsDone(id, note);
+  }
+
+  @Get('completed-tasks')
+  completedTasks(): Promise<Task[]> {
+    return this.tasksService.getCompletedTasks();
   }
 }
