@@ -13,6 +13,11 @@ export class TasksController {
     return this.tasksService.suggestTask();
   }
 
+  @Get('completed')
+  completedTasks(): Promise<Task[]> {
+    return this.tasksService.getCompletedTasks();
+  }
+
   @Get()
   findAll(): Promise<Task[]> {
     return this.tasksService.findAll();
@@ -41,10 +46,5 @@ export class TasksController {
   @Put(':id/mark-as-done')
   markAsDone(@Param('id') id: string): Promise<boolean> {
     return this.tasksService.markAsDone(id);
-  }
-
-  @Get('completed')
-  completedTasks(): Promise<Task[]> {
-    return this.tasksService.getCompletedTasks();
   }
 }
