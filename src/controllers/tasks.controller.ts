@@ -43,7 +43,7 @@ export class TasksController {
     return this.tasksService.markAsDone(id);
   }
 
-  @Get('completed-tasks')
+  @Get('completed')
   completedTasks(): Promise<Task[]> {
     return this.tasksService.getCompletedTasks();
   }

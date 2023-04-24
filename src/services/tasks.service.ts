@@ -84,6 +84,11 @@ export class TasksService {
   }
 
   async getCompletedTasks(): Promise<Task[]> {
-    return await this.tasksRepository.find();
+    return await this.tasksRepository.find({
+      select: ['taskID', 'note', 'status', 'title'],
+      where: {
+        status: 'done',
+      },
+    });
   }
 }
