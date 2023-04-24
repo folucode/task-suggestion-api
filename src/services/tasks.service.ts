@@ -21,7 +21,12 @@ export class TasksService {
   }
 
   async findAll(): Promise<Task[]> {
-    return this.tasksRepository.find();
+    return this.tasksRepository.find({
+      select: ['taskID', 'note', 'status', 'title'],
+      where: {
+        status: 'pending',
+      },
+    });
   }
 
   findOne(id: string): Promise<Task> {
