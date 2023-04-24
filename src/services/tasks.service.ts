@@ -47,7 +47,7 @@ export class TasksService {
     return await this.tasksRepository.save({ taskID: id, ...task });
   }
 
-  async markAsDone(id: string, note: string): Promise<Task> {
+  async markAsDone(id: string): Promise<boolean> {
     const task = await this.tasksRepository.findOne({
       select: ['taskID', 'note', 'status', 'title'],
       where: {
@@ -56,9 +56,15 @@ export class TasksService {
     });
 
     task.status = 'done';
-    task.note = note;
 
-    return await this.tasksRepository.save({ taskID: id, ...task });
+    await this.tasksRepository.update(
+      { taskID: id },
+      {
+        ...task,
+      },
+    );
+
+    return true;
   }
 
   async suggestTask(): Promise<Task | object> {

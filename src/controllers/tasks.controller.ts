@@ -39,11 +39,8 @@ export class TasksController {
   }
 
   @Put(':id/mark-as-done')
-  markAsDone(
-    @Param('id') id: string,
-    @Body('note') note: string,
-  ): Promise<Task> {
-    return this.tasksService.markAsDone(id, note);
+  markAsDone(@Param('id') id: string): Promise<boolean> {
+    return this.tasksService.markAsDone(id);
   }
 
   @Get('completed-tasks')
