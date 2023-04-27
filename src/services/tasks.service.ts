@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DeleteResult, Repository } from 'typeorm';
 import { Task } from 'src/models/task.entity';
 import { CreateTaskDto } from 'src/dto/create-task.dto';
 import { UpdateTaskDto } from 'src/dto/update-task.dto';
@@ -95,5 +95,9 @@ export class TasksService {
         status: 'done',
       },
     });
+  }
+
+  async removeTask(taskID: string): Promise<DeleteResult> {
+    return await this.tasksRepository.delete({ taskID });
   }
 }

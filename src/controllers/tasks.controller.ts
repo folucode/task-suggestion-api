@@ -1,8 +1,17 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { CreateTaskDto } from 'src/dto/create-task.dto';
 import { UpdateTaskDto } from 'src/dto/update-task.dto';
 import { Task } from 'src/models/task.entity';
 import { TasksService } from 'src/services/tasks.service';
+import { DeleteResult } from 'typeorm';
 
 @Controller('tasks')
 export class TasksController {
@@ -46,5 +55,10 @@ export class TasksController {
   @Put(':id/mark-as-done')
   markAsDone(@Param('id') id: string): Promise<boolean> {
     return this.tasksService.markAsDone(id);
+  }
+
+  @Delete(':id')
+  removeTask(@Param('id') id: string): Promise<DeleteResult> {
+    return this.tasksService.removeTask(id);
   }
 }
