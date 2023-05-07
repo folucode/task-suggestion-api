@@ -1,5 +1,5 @@
 import { json, urlencoded } from 'express';
-import { AppModule } from './app.module';
+import { AppModule } from './modules/app.module';
 // import { ExceptionsFilter } from './filters/exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

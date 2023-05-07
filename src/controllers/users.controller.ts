@@ -24,14 +24,4 @@ export class UsersController {
   findAll(): Promise<User[]> {
     return this.usersService.findAll();
   }
-
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<User> {
-    return this.usersService.findOne(id);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string): Promise<void> {
-    return this.usersService.remove(id);
-  }
 }

@@ -18,6 +18,11 @@ services:
     container_name: task-suggestion-api
     environment:
       - PORT=${PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
     ports:
       - '3001:3001'
     depends_on:

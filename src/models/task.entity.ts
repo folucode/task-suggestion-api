@@ -6,6 +6,9 @@ export class Task {
   taskID: string;
 
   @Column()
+  userId: string;
+
+  @Column()
   title: string;
 
   @Column({ nullable: true })
