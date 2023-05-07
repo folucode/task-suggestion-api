@@ -12,36 +12,39 @@ export class TasksService {
     private readonly tasksRepository: Repository<Task>,
   ) {}
 
-  create(createTaskDto: CreateTaskDto): Promise<Task> {
+  create(createTaskDto: CreateTaskDto, user): Promise<Task> {
     const task = new Task();
     task.title = createTaskDto.title;
     task.note = createTaskDto.note;
+    task.userId = user.userId;
 
     return this.tasksRepository.save(task);
   }
 
-  async findAll(): Promise<Task[]> {
+  async findAll(user): Promise<Task[]> {
     return this.tasksRepository.find({
       select: ['taskID', 'note', 'status', 'title'],
       where: {
         status: 'pending',
+        userId: user.userId,
       },
     });
   }
 
-  findOne(id: string): Promise<Task> {
-    return this.tasksRepository.findOneBy({ taskID: id });
+  findOne(id: string, user): Promise<Task> {
+    return this.tasksRepository.findOneBy({ taskID: id, userId: user.userId });
   }
 
   async remove(id: string): Promise<void> {
     await this.tasksRepository.delete(id);
   }
 
-  async update(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
+  async update(id: string, updateTaskDto: UpdateTaskDto, user): Promise<Task> {
     const task = await this.tasksRepository.findOne({
       select: ['taskID', 'note', 'status', 'title'],
       where: {
         taskID: id,
+        userId: user.userId,
       },
     });
 
@@ -52,11 +55,12 @@ export class TasksService {
     return await this.tasksRepository.save({ taskID: id, ...task });
   }
 
-  async markAsDone(id: string): Promise<boolean> {
+  async markAsDone(id: string, user): Promise<boolean> {
     const task = await this.tasksRepository.findOne({
       select: ['taskID', 'note', 'status', 'title'],
       where: {
         taskID: id,
+        userId: user.userId,
       },
     });
 
@@ -72,11 +76,12 @@ export class TasksService {
     return true;
   }
 
-  async suggestTask(): Promise<Task | object> {
+  async suggestTask(user): Promise<Task | object> {
     const tasks = await this.tasksRepository.find({
       select: ['taskID', 'note', 'status', 'title'],
       where: {
         status: 'pending',
+        userId: user.userId,
       },
     });
 
@@ -88,16 +93,17 @@ export class TasksService {
     return suggested;
   }
 
-  async getCompletedTasks(): Promise<Task[]> {
+  async getCompletedTasks(user): Promise<Task[]> {
     return await this.tasksRepository.find({
       select: ['taskID', 'note', 'status', 'title'],
       where: {
         status: 'done',
+        userId: user.userId,
       },
     });
   }
 
-  async removeTask(taskID: string): Promise<DeleteResult> {
-    return await this.tasksRepository.delete({ taskID });
+  async removeTask(taskID: string, user): Promise<DeleteResult> {
+    return await this.tasksRepository.delete({ taskID, userId: user.userId });
   }
 }
