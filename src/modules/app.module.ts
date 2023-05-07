@@ -16,7 +16,7 @@ import { Task } from 'src/models/task.entity';
       password: process.env.DATABASE_PASSWORD,
       database: process.env.DATABASE_NAME,
       entities: [User, Task],
-      synchronize: true,
+      synchronize: false,
       autoLoadEntities: true,
     }),
     UsersModule,
