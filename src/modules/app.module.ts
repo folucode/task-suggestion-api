@@ -5,9 +5,11 @@ import { UsersModule } from './users.module';
 import { TasksModule } from './tasks.module';
 import { AuthModule } from './auth.module';
 import { Task } from 'src/models/task.entity';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.POSTGRES_HOST,
@@ -18,6 +20,7 @@ import { Task } from 'src/models/task.entity';
       entities: [User, Task],
       synchronize: false,
       autoLoadEntities: true,
+      ssl: true,
     }),
     UsersModule,
     TasksModule,

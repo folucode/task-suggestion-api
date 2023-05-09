@@ -5,7 +5,7 @@ export class Task {
   @PrimaryGeneratedColumn()
   taskID: string;
 
-  @Column()
+  @Column({ default: '' })
   userId: string;
 
   @Column()
