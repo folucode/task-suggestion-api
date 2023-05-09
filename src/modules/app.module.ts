@@ -20,7 +20,6 @@ import { ConfigModule } from '@nestjs/config';
       entities: [User, Task],
       synchronize: false,
       autoLoadEntities: true,
-      ssl: true,
     }),
     UsersModule,
     TasksModule,
