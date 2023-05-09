@@ -19,8 +19,10 @@ export class AuthService {
       return registerUser;
     }
 
-    if (!isPasswordMatch(password, user?.password)) {
-      throw new UnauthorizedException();
+    const passwordMatch = await isPasswordMatch(password, user.password);
+
+    if (!passwordMatch) {
+      return new UnauthorizedException();
     }
 
     const payload = { username: user.username, userId: user.userId };
