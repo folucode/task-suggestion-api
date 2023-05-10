@@ -36,3 +36,4 @@ lerna-debug.log*
 
 pgadmin-data
 pgdata
+.env

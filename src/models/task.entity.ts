@@ -11,6 +11,9 @@ export class Task {
   @Column()
   title: string;
 
+  @Column()
+  priority: number;
+
   @Column({ nullable: true })
   note: string;
 
