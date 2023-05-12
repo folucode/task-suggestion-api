@@ -36,10 +36,6 @@ export class TasksService {
     return this.tasksRepository.findOneBy({ taskID: id, userId: user.userId });
   }
 
-  async remove(id: string): Promise<void> {
-    await this.tasksRepository.delete(id);
-  }
-
   async update(id: string, updateTaskDto: UpdateTaskDto, user): Promise<Task> {
     const task = await this.tasksRepository.findOne({
       select: ['taskID', 'note', 'status', 'title', 'priority'],
@@ -50,7 +46,6 @@ export class TasksService {
     });
 
     task.note = updateTaskDto.note;
-    task.status = updateTaskDto.status;
     task.title = updateTaskDto.title;
     task.priority = updateTaskDto.priority;
 
