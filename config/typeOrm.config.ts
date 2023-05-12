@@ -14,7 +14,7 @@ export default new DataSource({
   username: configService.get('DATABASE_USER'),
   password: configService.get('DATABASE_PASSWORD'),
   database: configService.get('DATABASE_NAME'),
-  entities: [join(__dirname, '../src/models/*.{ts}')],
-  ssl: true,
-  migrations: [join(__dirname, '/migrations/*.{ts}')],
+  entities: [join(__dirname, '../src/models/*.entity.ts')],
+  //   ssl: true,
+  migrations: [join(__dirname, '../migrations/*.ts')],
 });

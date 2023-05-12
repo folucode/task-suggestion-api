@@ -21,11 +21,6 @@ import { DeleteResult } from 'typeorm';
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
-  @Get('suggest')
-  suggestTask(@Request() req): Promise<Task | object> {
-    return this.tasksService.suggestTask(req.user);
-  }
-
   @Get('completed')
   completedTasks(@Request() req): Promise<Task[]> {
     return this.tasksService.getCompletedTasks(req.user);
