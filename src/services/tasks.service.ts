@@ -18,6 +18,7 @@ export class TasksService {
     task.note = createTaskDto.note;
     task.userId = user.userId;
     task.priority = createTaskDto.priority;
+    task.status = 'pending';
 
     return this.tasksRepository.save(task);
   }

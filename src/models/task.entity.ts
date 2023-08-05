@@ -11,12 +11,12 @@ export class Task {
   @Column()
   title: string;
 
-  @Column({ default: 0 })
+  @Column()
   priority: number;
 
-  @Column({ nullable: true })
+  @Column()
   note: string;
 
-  @Column({ enum: ['pending', 'done'], default: 'pending' })
+  @Column()
   status: string;
 }
