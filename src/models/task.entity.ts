@@ -1,11 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ObjectIdColumn } from 'typeorm';
 
 @Entity()
 export class Task {
-  @PrimaryGeneratedColumn()
+  @ObjectIdColumn()
   taskID: string;
 
-  @Column({ default: '' })
+  @ObjectIdColumn()
   userId: string;
 
   @Column()
