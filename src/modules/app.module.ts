@@ -10,14 +10,11 @@ import { join } from 'path';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.POSTGRES_HOST,
-      port: 5432,
-      username: process.env.DATABASE_USER,
-      password: process.env.DATABASE_PASSWORD,
+      type: 'mongodb',
+      url: `mongodb+srv://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@cluster0.wcxfkxq.mongodb.net/?retryWrites=true&w=majority`,
       database: process.env.DATABASE_NAME,
       entities: [join(__dirname, '../models/*.entity.ts')],
-      synchronize: false,
+      synchronize: true,
       autoLoadEntities: true,
       // ssl: true,
     }),

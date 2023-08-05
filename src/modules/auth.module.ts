@@ -3,9 +3,11 @@ import { AuthController } from '../controllers/auth.controller';
 import { AuthService } from '../services/auth.service';
 import { UsersModule } from './users.module';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     UsersModule,
     JwtModule.register({
       global: true,

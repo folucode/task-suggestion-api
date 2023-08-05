@@ -8,12 +8,8 @@ config();
 const configService = new ConfigService();
 
 export default new DataSource({
-  type: 'postgres',
-  host: configService.get('POSTGRES_HOST'),
-  port: 5432,
-  username: configService.get('DATABASE_USER'),
-  password: configService.get('DATABASE_PASSWORD'),
-  database: configService.get('DATABASE_NAME'),
+  type: 'mongodb',
+  url: `mongodb+srv://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@cluster0.wcxfkxq.mongodb.net/?retryWrites=true&w=majority`,
   entities: [join(__dirname, '../src/models/*.entity.ts')],
   //   ssl: true,
   migrations: [join(__dirname, '../migrations/*.ts')],
