@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteResult, Repository } from 'typeorm';
-import { Task } from 'src/models/task.entity';
-import { CreateTaskDto } from 'src/dto/create-task.dto';
-import { UpdateTaskDto } from 'src/dto/update-task.dto';
+import { DeleteResult } from 'typeorm';
+import { Task, TaskDocument } from 'src/models/task.entity';
+import { CreateTaskDto } from 'src/dto/task.dto';
+import { UpdateTaskDto } from 'src/dto/task.dto';
+import { randomUUID } from 'crypto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { UpdateResult } from 'mongodb';
 
 @Injectable()
 export class TasksService {
   constructor(
-    @InjectRepository(Task)
-    private readonly tasksRepository: Repository<Task>,
+    @InjectModel(Task.name)
+    private readonly taskModel: Model<TaskDocument>,
   ) {}
 
   create(createTaskDto: CreateTaskDto, user): Promise<Task> {
@@ -20,71 +23,77 @@ export class TasksService {
     task.priority = createTaskDto.priority;
     task.status = 'pending';
 
-    return this.tasksRepository.save(task);
+    return this.taskModel.create(task);
   }
 
   async findAll(user): Promise<Task[]> {
-    return this.tasksRepository.find({
-      select: ['taskID', 'note', 'status', 'title', 'priority'],
-      where: {
-        status: 'pending',
-        userId: user.userId,
-      },
-    });
+    return this.taskModel.find({ status: 'pending', userId: user.userId });
   }
 
   findOne(id: string, user): Promise<Task> {
-    return this.tasksRepository.findOneBy({ taskID: id, userId: user.userId });
+    return this.taskModel.findOne({ _id: id, userId: user.userId });
   }
 
-  async update(id: string, updateTaskDto: UpdateTaskDto, user): Promise<Task> {
-    const task = await this.tasksRepository.findOne({
-      select: ['taskID', 'note', 'status', 'title', 'priority'],
-      where: {
-        taskID: id,
-        userId: user.userId,
-      },
+  async update(
+    taskId: string,
+    updateTaskDto: UpdateTaskDto,
+    user,
+  ): Promise<UpdateResult> {
+    const task = await this.taskModel.findOne({
+      _id: taskId,
+      userId: user.userId,
     });
 
     task.note = updateTaskDto.note;
     task.title = updateTaskDto.title;
     task.priority = updateTaskDto.priority;
 
-    return await this.tasksRepository.save({ taskID: id, ...task });
+    return await this.taskModel.updateOne(
+      { _id: taskId },
+      { ...task },
+      { lean: true },
+    );
   }
 
-  async markAsDone(id: string, user): Promise<boolean> {
-    const task = await this.tasksRepository.findOne({
-      select: ['taskID', 'note', 'status', 'title', 'priority'],
-      where: {
-        taskID: id,
-        userId: user.userId,
-      },
-    });
-
-    task.status = 'done';
-
-    await this.tasksRepository.update(
-      { taskID: id },
-      {
-        ...task,
-      },
+  async markAsDone(taskId: string, user): Promise<Task> {
+    const task = await this.taskModel.findOneAndUpdate(
+      { _id: taskId, userId: user.userId },
+      { $set: { status: 'done' } },
+      { lean: true },
     );
 
-    return true;
+    console.log(task, user.userId, taskId);
+
+    return task;
+
+    // const task = await this.taskModel.findOne({
+    //   _id: taskId,
+    //   userId: user.userId,
+    // });
+
+    // task.status = 'done';
+
+    // await this.taskModel.updateOne(
+    //   { taskId },
+    //   {
+    //     ...task,
+    //   },
+    // );
+
+    // return true;
   }
 
-  async getCompletedTasks(user): Promise<Task[]> {
-    return await this.tasksRepository.find({
-      select: ['taskID', 'note', 'status', 'title', 'priority'],
-      where: {
-        status: 'done',
-        userId: user.userId,
-      },
-    });
-  }
+  // async getCompletedTasks(user): Promise<Task[]> {
+  //   return await this.tasksRepository.find({
+  //     select: ['taskId', 'note', 'status', 'title', 'priority'],
+  //     where: {
+  //       status: 'done',
+  //       userId: user.userId,
+  //     },
+  //   });
+  // }
 
-  async removeTask(taskID: string, user): Promise<DeleteResult> {
-    return await this.tasksRepository.delete({ taskID, userId: user.userId });
-  }
+  // async removeTask(taskId: string, user): Promise<DeleteResult> {
+  //   return await this.tasksRepository.delete({ taskId, userId: user.userId });
+  // }
 }

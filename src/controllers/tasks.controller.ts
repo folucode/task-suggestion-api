@@ -9,8 +9,9 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { CreateTaskDto } from 'src/dto/create-task.dto';
-import { UpdateTaskDto } from 'src/dto/update-task.dto';
+import { UpdateResult } from 'mongodb';
+import { CreateTaskDto } from 'src/dto/task.dto';
+import { UpdateTaskDto } from 'src/dto/task.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { Task } from 'src/models/task.entity';
 import { TasksService } from 'src/services/tasks.service';
@@ -21,10 +22,10 @@ import { DeleteResult } from 'typeorm';
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
-  @Get('completed')
-  completedTasks(@Request() req): Promise<Task[]> {
-    return this.tasksService.getCompletedTasks(req.user);
-  }
+  // @Get('completed')
+  // completedTasks(@Request() req): Promise<Task[]> {
+  //   return this.tasksService.getCompletedTasks(req.user);
+  // }
 
   @Get()
   findAll(@Request() req): Promise<Task[]> {
@@ -46,17 +47,17 @@ export class TasksController {
     @Param('id') id: string,
     @Body() taskData: UpdateTaskDto,
     @Request() req,
-  ): Promise<Task> {
+  ): Promise<UpdateResult> {
     return this.tasksService.update(id, taskData, req.user);
   }
 
   @Put(':id/mark-as-done')
-  markAsDone(@Param('id') id: string, @Request() req): Promise<boolean> {
+  markAsDone(@Param('id') id: string, @Request() req): Promise<Task> {
     return this.tasksService.markAsDone(id, req.user);
   }
 
-  @Delete(':id')
-  removeTask(@Param('id') id: string, @Request() req): Promise<DeleteResult> {
-    return this.tasksService.removeTask(id, req.user);
-  }
+  // @Delete(':id')
+  // removeTask(@Param('id') id: string, @Request() req): Promise<DeleteResult> {
+  //   return this.tasksService.removeTask(id, req.user);
+  // }
 }

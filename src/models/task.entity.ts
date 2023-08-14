@@ -1,22 +1,30 @@
-import { Column, Entity, ObjectIdColumn } from 'typeorm';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
+import { Priority } from 'src/dto/task.dto';
+import { Status } from 'src/dto/task.dto';
+import { ObjectId } from 'mongodb';
 
-@Entity()
+export type TaskDocument = HydratedDocument<Task>;
+
+@Schema()
 export class Task {
-  @ObjectIdColumn()
-  taskID: string;
+  @Prop({ required: true, type: ObjectId })
+  taskId: ObjectId;
 
-  @ObjectIdColumn()
+  @Prop({ required: true, ref: 'User' })
   userId: string;
 
-  @Column()
+  @Prop({ required: true })
   title: string;
 
-  @Column()
-  priority: number;
+  @Prop({ required: true, enum: Priority })
+  priority: string;
 
-  @Column()
+  @Prop({ text: true })
   note: string;
 
-  @Column()
+  @Prop({ enum: Status, default: Status.Pending })
   status: string;
 }
+
+export const TaskSchema = SchemaFactory.createForClass(Task);
