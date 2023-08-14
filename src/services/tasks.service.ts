@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DeleteResult } from 'typeorm';
 import { Task, TaskDocument } from 'src/models/task.entity';
 import { CreateTaskDto } from 'src/dto/task.dto';
 import { UpdateTaskDto } from 'src/dto/task.dto';
 import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { UpdateResult } from 'mongodb';
 
 @Injectable()
@@ -16,12 +15,15 @@ export class TasksService {
   ) {}
 
   create(createTaskDto: CreateTaskDto, user): Promise<Task> {
+    const taskId = new mongoose.mongo.ObjectId();
+
     const task = new Task();
+    task.taskId = taskId;
     task.title = createTaskDto.title;
     task.note = createTaskDto.note;
     task.userId = user.userId;
     task.priority = createTaskDto.priority;
-    task.status = 'pending';
+    task.due = createTaskDto.due;
 
     return this.taskModel.create(task);
   }

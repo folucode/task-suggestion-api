@@ -25,6 +25,9 @@ export class Task {
 
   @Prop({ enum: Status, default: Status.Pending })
   status: string;
+
+  @Prop({ type: Date })
+  due: Date;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

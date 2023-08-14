@@ -16,6 +16,7 @@ export class LabelsService {
     const labels = await this.labelModel
       .find({ userId: user.userId })
       .lean(true)
+      .projection({ _id: 0 })
       .exec();
 
     return {

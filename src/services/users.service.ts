@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from '../dto/user.dto';
 import { User } from '../models/user.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -12,7 +12,9 @@ export class UsersService {
   ) {}
 
   create(createUserDto: CreateUserDto): Promise<User> {
+    const userId = new mongoose.mongo.ObjectId();
     const user = new User();
+    user.userId = userId;
     user.username = createUserDto.username;
     user.password = createUserDto.password;
 

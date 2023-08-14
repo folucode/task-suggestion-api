@@ -14,6 +14,7 @@ export class CreateTaskDto {
   title: string;
   note: string;
   priority: Priority;
+  due?: Date;
 }
 
 export class UpdateTaskDto {
