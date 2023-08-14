@@ -5,10 +5,12 @@ import { AuthModule } from './auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { LabelsModule } from './label.module';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRoot(
       `mongodb+srv://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@cluster0.wcxfkxq.mongodb.net/task_suggestion?retryWrites=true&w=majority`,
     ),

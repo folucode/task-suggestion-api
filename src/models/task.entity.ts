@@ -26,8 +26,8 @@ export class Task {
   @Prop({ enum: Status, default: Status.Pending })
   status: string;
 
-  @Prop({ type: Date })
-  due: Date;
+  @Prop({ type: Date, default: null })
+  due: string;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

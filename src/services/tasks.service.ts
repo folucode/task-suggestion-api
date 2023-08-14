@@ -1,14 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, UseGuards } from '@nestjs/common';
 import { Task, TaskDocument } from 'src/models/task.entity';
 import { CreateTaskDto } from 'src/dto/task.dto';
 import { UpdateTaskDto } from 'src/dto/task.dto';
-import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { UpdateResult } from 'mongodb';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
@@ -98,4 +100,35 @@ export class TasksService {
   // async removeTask(taskId: string, user): Promise<DeleteResult> {
   //   return await this.tasksRepository.delete({ taskId, userId: user.userId });
   // }
+
+  async getAllTasks(): Promise<Task[] | boolean> {
+    const tasks = await this.taskModel.find();
+
+    if (tasks.length < 1) return false;
+
+    return tasks;
+  }
+
+  //Jobs
+  @Cron(CronExpression.EVERY_5_SECONDS)
+  async handleCron() {
+    const tasks = (await this.getAllTasks()) as Array<Task>;
+
+    const tasksWithDueDate = tasks.filter((task) => task.due != null);
+
+    tasksWithDueDate.forEach((taskWithDueDate) => {
+      const currentTime = new Date().getTime();
+      const timeDue = new Date(taskWithDueDate.due).getTime();
+
+      const timeDifference = timeDue - currentTime;
+
+      const twentyFourHoursInMilliseconds = 24 * 60 * 60 * 1000;
+
+      if (timeDifference <= twentyFourHoursInMilliseconds) {
+        this.logger.debug(
+          `${taskWithDueDate.userId}, task with ID ${taskWithDueDate.taskId} is due in 24 hours`,
+        );
+      }
+    });
+  }
 }
