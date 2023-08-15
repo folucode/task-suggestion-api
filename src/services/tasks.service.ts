@@ -1,4 +1,9 @@
-import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import {
+  NotificationPriority,
+  NotificationStatus,
+  NotificationTypes,
+} from './../utils/notification.utils';
+import { Injectable, Logger } from '@nestjs/common';
 import { Task, TaskDocument } from 'src/models/task.entity';
 import { CreateTaskDto } from 'src/dto/task.dto';
 import { UpdateTaskDto } from 'src/dto/task.dto';
@@ -6,6 +11,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { UpdateResult } from 'mongodb';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import {
+  Notification,
+  NotificationDocument,
+} from 'src/models/notification.entity';
 
 @Injectable()
 export class TasksService {
@@ -14,6 +23,8 @@ export class TasksService {
   constructor(
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
+    @InjectModel(Notification.name)
+    private readonly notificationModel: Model<NotificationDocument>,
   ) {}
 
   create(createTaskDto: CreateTaskDto, user): Promise<Task> {
@@ -101,34 +112,62 @@ export class TasksService {
   //   return await this.tasksRepository.delete({ taskId, userId: user.userId });
   // }
 
-  async getAllTasks(): Promise<Task[] | boolean> {
+  async getAllDueTasks(): Promise<Notification[]> {
     const tasks = await this.taskModel.find();
 
-    if (tasks.length < 1) return false;
+    if (tasks.length < 1) return;
 
-    return tasks;
+    const tasksWithDueDate = tasks.filter((task) => task.due != null);
+
+    const result = await Promise.all(
+      tasksWithDueDate.map(async (taskWithDueDate) => {
+        const currentTime = new Date().getTime();
+        const timeDue = new Date(taskWithDueDate.due).getTime();
+
+        const timeDifference = timeDue - currentTime;
+
+        const twentyFourHoursInMilliseconds = 24 * 60 * 60 * 1000;
+
+        const d = await this.notificationModel.find({
+          userId: taskWithDueDate.userId,
+          type: NotificationTypes.DueDate,
+          content: `Task ${taskWithDueDate.title} is due soon`,
+        });
+
+        const inNotificationsTable = d.length < 1;
+
+        if (
+          timeDifference <= twentyFourHoursInMilliseconds &&
+          inNotificationsTable
+        ) {
+          return {
+            notificationId: new mongoose.Types.ObjectId(),
+            userId: taskWithDueDate.userId,
+            type: NotificationTypes.DueDate,
+            content: `Task ${taskWithDueDate.title} is due soon`,
+            status: NotificationStatus.Unread,
+            triggeredBy: 'system',
+            metadata: JSON.stringify(taskWithDueDate),
+            priority: NotificationPriority.High,
+          };
+        } else {
+          return null;
+        }
+      }),
+    );
+
+    const filteredResults = result.filter((r) => r != undefined);
+
+    return filteredResults;
   }
 
   //Jobs
   @Cron(CronExpression.EVERY_5_SECONDS)
-  async handleCron() {
-    const tasks = (await this.getAllTasks()) as Array<Task>;
+  async handleTasksWithDueDateCron() {
+    const t = await this.getAllDueTasks();
 
-    const tasksWithDueDate = tasks.filter((task) => task.due != null);
+    if (t.length < 1) return;
 
-    tasksWithDueDate.forEach((taskWithDueDate) => {
-      const currentTime = new Date().getTime();
-      const timeDue = new Date(taskWithDueDate.due).getTime();
-
-      const timeDifference = timeDue - currentTime;
-
-      const twentyFourHoursInMilliseconds = 24 * 60 * 60 * 1000;
-
-      if (timeDifference <= twentyFourHoursInMilliseconds) {
-        this.logger.debug(
-          `${taskWithDueDate.userId}, task with ID ${taskWithDueDate.taskId} is due in 24 hours`,
-        );
-      }
-    });
+    this.notificationModel.insertMany(t);
   }
 }

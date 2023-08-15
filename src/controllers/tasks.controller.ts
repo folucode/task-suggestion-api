@@ -15,7 +15,6 @@ import { UpdateTaskDto } from 'src/dto/task.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { Task } from 'src/models/task.entity';
 import { TasksService } from 'src/services/tasks.service';
-import { DeleteResult } from 'typeorm';
 
 @UseGuards(AuthGuard)
 @Controller('tasks')

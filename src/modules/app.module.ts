@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { LabelsModule } from './label.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
+import { NotificationModule } from './notifications.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     TasksModule,
     AuthModule,
     LabelsModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}

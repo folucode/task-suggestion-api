@@ -11,7 +11,7 @@ import { CreateLabel } from 'src/dto/label.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { Label } from 'src/models/label.entity';
 import { LabelsService } from 'src/services/labels.service';
-import { Response } from 'src/utils/response';
+import { Response } from 'src/utils/response.utils';
 
 @UseGuards(AuthGuard)
 @Controller('labels')
