@@ -8,12 +8,14 @@ import {
   Notification,
   NotificationSchema,
 } from 'src/models/notification.entity';
+import { Subtask, SubtaskSchema } from 'src/models/subtask.entity';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Task.name, schema: TaskSchema },
       { name: Notification.name, schema: NotificationSchema },
+      { name: Subtask.name, schema: SubtaskSchema },
     ]),
   ],
   providers: [TasksService],

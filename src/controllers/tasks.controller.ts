@@ -9,45 +9,49 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { UpdateResult } from 'mongodb';
-import { CreateTaskDto } from 'src/dto/task.dto';
-import { UpdateTaskDto } from 'src/dto/task.dto';
+import { CreateSubtask, CreateTask } from 'src/dto/task.dto';
+import { UpdateTask } from 'src/dto/task.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { Task } from 'src/models/task.entity';
+import { Subtask } from 'src/models/subtask.entity';
 import { TasksService } from 'src/services/tasks.service';
+import { Response } from 'src/utils/response.utils';
+import { Types } from 'mongoose';
+import { DeleteResult } from 'mongodb';
 
 @UseGuards(AuthGuard)
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
-  // @Get('completed')
-  // completedTasks(@Request() req): Promise<Task[]> {
-  //   return this.tasksService.getCompletedTasks(req.user);
-  // }
-
   @Get()
-  findAll(@Request() req): Promise<Task[]> {
+  findAll(@Request() req): Promise<Response<Task[]>> {
     return this.tasksService.findAll(req.user);
   }
 
   @Get(':id')
-  findOne(@Param('id') taskID: string, @Request() req): Promise<Task> {
+  findOne(
+    @Param('id') taskID: string,
+    @Request() req,
+  ): Promise<Response<Task>> {
     return this.tasksService.findOne(taskID, req.user);
   }
 
   @Post()
-  create(@Body() createTaskDto: CreateTaskDto, @Request() req): Promise<Task> {
+  create(
+    @Body() createTaskDto: CreateTask,
+    @Request() req,
+  ): Promise<Response<Task>> {
     return this.tasksService.create(createTaskDto, req.user);
   }
 
-  @Put(':id')
+  @Put(':taskId')
   update(
-    @Param('id') id: string,
-    @Body() taskData: UpdateTaskDto,
+    @Param('taskId') taskId: string,
+    @Body() taskData: UpdateTask,
     @Request() req,
-  ): Promise<UpdateResult> {
-    return this.tasksService.update(id, taskData, req.user);
+  ) {
+    return this.tasksService.update(taskId, taskData, req.user);
   }
 
   @Put(':id/mark-as-done')
@@ -55,8 +59,39 @@ export class TasksController {
     return this.tasksService.markAsDone(id, req.user);
   }
 
-  // @Delete(':id')
-  // removeTask(@Param('id') id: string, @Request() req): Promise<DeleteResult> {
-  //   return this.tasksService.removeTask(id, req.user);
-  // }
+  @Post(':taskId/subtask')
+  createSubtask(
+    @Param('taskId') taskId: Types.ObjectId,
+    @Request() req,
+    @Body() data: CreateSubtask,
+  ): Promise<Response<Subtask>> {
+    return this.tasksService.createSubtask(taskId, req.user, data);
+  }
+
+  @Put(':taskId/subtasks/:subtaskId')
+  updateSubtask(
+    @Param('taskId') taskId: string,
+    @Param('subtaskId') subtaskId: string,
+    @Request() req,
+    @Body() taskData: CreateSubtask,
+  ): Promise<Response<Subtask>> {
+    return this.tasksService.updateSubtask(taskId, subtaskId, taskData);
+  }
+
+  @Delete(':id')
+  removeTask(
+    @Param('id') id: string,
+    @Request() req,
+  ): Promise<Response<DeleteResult>> {
+    return this.tasksService.removeTask(id, req.user);
+  }
+
+  @Delete(':taskId/subtasks/:subtaskId')
+  removeSubtask(
+    @Param('taskId') taskId: string,
+    @Param('subtaskId') subtaskId: string,
+    @Request() req,
+  ): Promise<Response<DeleteResult>> {
+    return this.tasksService.removeSubtask(taskId, subtaskId);
+  }
 }

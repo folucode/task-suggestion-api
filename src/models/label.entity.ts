@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ObjectId } from 'mongodb';
-import { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 
 export type LabelDocument = HydratedDocument<Label>;
 
@@ -9,8 +9,8 @@ export class Label {
   @Prop({ required: true })
   labelId: ObjectId;
 
-  @Prop({ ref: 'User', type: ObjectId, required: true })
-  userId: string;
+  @Prop({ ref: 'User', type: mongoose.Schema.Types.ObjectId, required: true })
+  userId: ObjectId;
 
   @Prop({ required: true })
   name: string;

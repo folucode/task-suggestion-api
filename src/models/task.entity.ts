@@ -6,10 +6,13 @@ import { ObjectId } from 'mongodb';
 
 export type TaskDocument = HydratedDocument<Task>;
 
-@Schema()
+@Schema({
+  toJSON: { virtuals: true, getters: true },
+  toObject: { virtuals: true, getters: true },
+})
 export class Task {
-  @Prop({ required: true, type: ObjectId })
-  taskId: ObjectId;
+  @Prop({ required: true })
+  taskId: string;
 
   @Prop({ required: true, ref: 'User' })
   userId: string;
@@ -20,14 +23,23 @@ export class Task {
   @Prop({ required: true, enum: Priority })
   priority: string;
 
-  @Prop({ text: true })
+  @Prop({ text: true, default: null })
   note: string;
+
+  @Prop({ ref: 'Label', type: ObjectId, default: null })
+  labelId: ObjectId;
 
   @Prop({ enum: Status, default: Status.Pending })
   status: string;
 
   @Prop({ type: Date, default: null })
-  due: string;
+  due: Date;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);
+
+TaskSchema.virtual('subtasks', {
+  ref: 'Subtask',
+  localField: 'taskId',
+  foreignField: 'parentTaskId',
+});

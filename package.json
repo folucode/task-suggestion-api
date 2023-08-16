@@ -26,6 +26,7 @@
     "m:rev": "npm run typeorm -- -d ./config/typeOrm.config.ts migration:revert"
   },
   "dependencies": {
+    "@nestjs/bull": "^10.0.1",
     "@nestjs/class-transformer": "^0.4.0",
     "@nestjs/class-validator": "^0.13.4",
     "@nestjs/common": "^10.1.3",
@@ -38,6 +39,7 @@
     "@nestjs/schedule": "^3.0.2",
     "@nestjs/typeorm": "^10.0.0",
     "bcrypt": "^5.1.0",
+    "bull": "^4.11.3",
     "class-validator": "^0.14.0",
     "mongodb": "^5.7.0",
     "mongoose": "^7.4.2",
@@ -45,8 +47,7 @@
     "postgres": "^3.3.4",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
-    "rxjs": "^7.2.0",
-    "typeorm": "^0.3.13"
+    "rxjs": "^7.2.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.1.11",

@@ -23,10 +23,10 @@ export class LabelsController {
   //   return this.labelsService.findAll(req.user);
   // }
 
-  // @Get(':id')
-  // findOne(@Param('id') id: string, @Request() req): Promise<Response<Label>> {
-  //   return this.labelsService.findOne(id, req.user);
-  // }
+  @Get(':id')
+  findOne(@Param('id') id: string, @Request() req): Promise<Response<Label>> {
+    return this.labelsService.findOne(id, req.user);
+  }
 
   @Post('')
   create(@Body() data: CreateLabel, @Request() req): Promise<Response<Label>> {

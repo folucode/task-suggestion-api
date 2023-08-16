@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { CreateLabel } from 'src/dto/label.dto';
 import { Label } from 'src/models/label.entity';
 import { Response, Status } from 'src/utils/response.utils';
@@ -43,6 +43,7 @@ export class LabelsService {
     const label = new Label();
     label.name = data.name;
     label.userId = user.userId;
+    label.labelId = new mongoose.mongo.ObjectId();
 
     const labelData = await this.labelModel.create(label);
 
@@ -56,9 +57,10 @@ export class LabelsService {
   }
 
   async findOne(labelId: string, user): Promise<Response<Label>> {
+    console.log(labelId);
     const label = await this.labelModel.findOne({
       _id: labelId,
-      userId: user.userId,
+      // userId: user.userId,
     });
 
     if (label != null) {

@@ -6,5 +6,5 @@ export enum Status {
 export interface Response<T> {
   message: string;
   status: Status;
-  data: T | [] | null;
+  data: T | T[] | null | [];
 }

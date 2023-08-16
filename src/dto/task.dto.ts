@@ -1,3 +1,5 @@
+import { ObjectId } from 'mongodb';
+
 export enum Priority {
   High = 'High',
   Medium = 'Medium',
@@ -9,17 +11,28 @@ export enum Status {
   Pending = 'Pending',
 }
 
-export class CreateTaskDto {
-  userId: string;
+export interface CreateTask {
   title: string;
-  note: string;
+  note?: string;
   priority: Priority;
-  due?: string;
+  due?: Date;
+  labelId?: ObjectId;
 }
 
-export class UpdateTaskDto {
+export interface UpdateTask {
+  title?: string;
+  note?: string;
+  status?: Status;
+  priority?: Priority;
+  due?: Date;
+}
+
+export interface CreateSubtask {
   title: string;
-  note: string;
-  status: Status;
+  note?: string;
   priority: Priority;
+  parentTaskId: ObjectId;
+  labelId?: ObjectId;
+  due?: Date;
+  status?: Status;
 }
