@@ -5,11 +5,7 @@ import {
 } from './../utils/notification.utils';
 import { Injectable, Logger } from '@nestjs/common';
 import { Task, TaskDocument } from 'src/models/task.entity';
-import {
-  CreateSubtask,
-  CreateTask,
-  Status as TaskStatus,
-} from 'src/dto/task.dto';
+import { CreateSubtask, CreateTask } from 'src/dto/task.dto';
 import { UpdateTask } from 'src/dto/task.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
@@ -20,7 +16,13 @@ import {
 } from 'src/models/notification.entity';
 import { Response, Status } from 'src/utils/response.utils';
 import { Subtask, SubtaskDocument } from 'src/models/subtask.entity';
-import { DeleteResult, ObjectId } from 'mongodb';
+import { DeleteResult } from 'mongodb';
+import { Reminder, ReminderDocument } from 'src/models/reminder.entity';
+import * as moment from 'moment';
+import * as momentTZ from 'moment-timezone';
+import { User, UserDocument } from 'src/models/user.entity';
+import Mailgun from 'mailgun.js';
+import * as formData from 'form-data';
 
 @Injectable()
 export class TasksService {
@@ -33,20 +35,40 @@ export class TasksService {
     private readonly notificationModel: Model<NotificationDocument>,
     @InjectModel(Subtask.name)
     private readonly subtaskModel: Model<SubtaskDocument>,
+    @InjectModel(Reminder.name)
+    private readonly reminderModel: Model<ReminderDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
   ) {}
 
-  async create(createTaskDto: CreateTask, user): Promise<Response<Task>> {
-    const taskId = new mongoose.mongo.ObjectId();
+  async create(data: CreateTask, user): Promise<any> {
+    const taskId = new mongoose.mongo.ObjectId().toString();
 
     const task = new Task();
-    task.taskId = taskId.toString();
-    task.title = createTaskDto.title;
-    task.note = createTaskDto.note;
+    task.taskId = taskId;
+    task.title = data.title;
+    task.note = data.note;
     task.userId = user.userId;
-    task.priority = createTaskDto.priority;
-    task.due = createTaskDto.due;
+    task.priority = data.priority;
+    task.due = data.due;
 
     const r = await this.taskModel.create(task);
+
+    if (data.reminderOn) {
+      const reminders = data.times.map((time) => {
+        const timeInISO = new Date(time).toISOString();
+
+        return new this.reminderModel({
+          reminderId: new mongoose.mongo.ObjectId().toString(),
+          taskId,
+          userId: user.userId,
+          time: moment(timeInISO).utc().toString(),
+          sent: false,
+        });
+      });
+
+      this.reminderModel.bulkSave(reminders);
+    }
 
     return {
       status: Status.Success,
@@ -68,6 +90,14 @@ export class TasksService {
           localField: 'taskId',
           foreignField: 'parentTaskId',
           as: 'subtasks',
+        },
+      },
+      {
+        $lookup: {
+          from: 'reminders',
+          localField: 'taskId',
+          foreignField: 'taskId',
+          as: 'reminders',
         },
       },
       {
@@ -194,7 +224,7 @@ export class TasksService {
   }
 
   async createSubtask(
-    taskId: ObjectId,
+    taskId: string,
     user,
     subtaskData: CreateSubtask,
   ): Promise<Response<Subtask>> {
@@ -229,7 +259,7 @@ export class TasksService {
     subtask.note = subtaskData.note;
     subtask.parentTaskId = taskId;
     subtask.priority = subtaskData.priority;
-    subtask.subtaskId = new mongoose.mongo.ObjectId();
+    subtask.subtaskId = new mongoose.mongo.ObjectId().toString();
     subtask.title = subtaskData.title;
 
     const r = await this.subtaskModel.create(subtask);
@@ -346,7 +376,7 @@ export class TasksService {
           inNotificationsTable
         ) {
           return {
-            notificationId: new mongoose.Types.ObjectId(),
+            notificationId: new mongoose.Types.ObjectId().toString(),
             userId: taskWithDueDate.userId,
             type: NotificationTypes.DueDate,
             content: `Task ${taskWithDueDate.title} is due soon`,
@@ -367,7 +397,54 @@ export class TasksService {
   }
 
   //Jobs
-  @Cron(CronExpression.EVERY_5_SECONDS)
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async handleSendReminderCron() {
+    const reminders = await this.reminderModel.find({ sent: false });
+
+    Promise.all(
+      reminders.map(async (reminder) => {
+        try {
+          const task = await this.taskModel.findOne({
+            taskId: reminder.taskId,
+          });
+          const user = await this.userModel.findOne({
+            userId: reminder.userId,
+          });
+
+          const timeInISO = new Date(reminder.time).toISOString();
+
+          const currentTimeInUserTZ = momentTZ().tz(user.timezone);
+
+          const reminderTimeInUserTZ = momentTZ(timeInISO).tz(user.timezone);
+
+          if (currentTimeInUserTZ.isSame(reminderTimeInUserTZ, 'minute')) {
+            const mg = new Mailgun(formData).client({
+              username: process.env.MAILGUN_USERNAME,
+              key: process.env.MAILGUN_API_KEY,
+            });
+
+            const r = await mg.messages.create(process.env.MAILGUN_SANDBOX, {
+              from: 'TaskApp <mail@taskapp.com>',
+              to: user.email,
+              subject: 'Reminder Notification',
+              text: `Reminder for ${task.title}`,
+            });
+
+            this.logger.log(r);
+
+            await this.reminderModel.findOneAndUpdate(
+              { reminderId: reminder.reminderId },
+              { $set: { sent: true } },
+            );
+          }
+        } catch (error) {
+          this.logger.error(error.message);
+        }
+      }),
+    );
+  }
+
+  // @Cron(CronExpression.EVERY_5_SECONDS)
   async handleTasksWithDueDateCron() {
     const t = await this.getAllDueTasks();
 

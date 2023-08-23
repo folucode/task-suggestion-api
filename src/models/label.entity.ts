@@ -7,10 +7,10 @@ export type LabelDocument = HydratedDocument<Label>;
 @Schema()
 export class Label {
   @Prop({ required: true })
-  labelId: ObjectId;
+  labelId: string;
 
-  @Prop({ ref: 'User', type: mongoose.Schema.Types.ObjectId, required: true })
-  userId: ObjectId;
+  @Prop({ ref: 'User', required: true })
+  userId: string;
 
   @Prop({ required: true })
   name: string;

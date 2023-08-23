@@ -12,7 +12,7 @@ export class UsersService {
   ) {}
 
   create(createUserDto: CreateUserDto): Promise<User> {
-    const userId = new mongoose.mongo.ObjectId();
+    const userId = new mongoose.mongo.ObjectId().toString();
     const user = new User();
     user.userId = userId;
     user.username = createUserDto.username;

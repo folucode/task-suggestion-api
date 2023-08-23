@@ -9,6 +9,8 @@ import {
   NotificationSchema,
 } from 'src/models/notification.entity';
 import { Subtask, SubtaskSchema } from 'src/models/subtask.entity';
+import { Reminder, ReminderSchema } from 'src/models/reminder.entity';
+import { User, UserSchema } from 'src/models/user.entity';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { Subtask, SubtaskSchema } from 'src/models/subtask.entity';
       { name: Task.name, schema: TaskSchema },
       { name: Notification.name, schema: NotificationSchema },
       { name: Subtask.name, schema: SubtaskSchema },
+      { name: Reminder.name, schema: ReminderSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   providers: [TasksService],

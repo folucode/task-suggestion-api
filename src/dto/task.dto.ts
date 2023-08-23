@@ -1,5 +1,3 @@
-import { ObjectId } from 'mongodb';
-
 export enum Priority {
   High = 'High',
   Medium = 'Medium',
@@ -16,7 +14,9 @@ export interface CreateTask {
   note?: string;
   priority: Priority;
   due?: Date;
-  labelId?: ObjectId;
+  labelId?: string;
+  reminderOn?: boolean;
+  times: [string];
 }
 
 export interface UpdateTask {
@@ -25,14 +25,24 @@ export interface UpdateTask {
   status?: Status;
   priority?: Priority;
   due?: Date;
+  reminderOn?: boolean;
+  times: [string];
 }
 
 export interface CreateSubtask {
   title: string;
   note?: string;
   priority: Priority;
-  parentTaskId: ObjectId;
-  labelId?: ObjectId;
+  parentTaskId: string;
+  labelId?: string;
   due?: Date;
   status?: Status;
+}
+
+export interface CreateReminder {
+  reminderId: string;
+  taskId: string;
+  userId: string;
+  time: string;
+  sent?: boolean;
 }

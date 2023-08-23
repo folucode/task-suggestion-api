@@ -16,7 +16,6 @@ import { Task } from 'src/models/task.entity';
 import { Subtask } from 'src/models/subtask.entity';
 import { TasksService } from 'src/services/tasks.service';
 import { Response } from 'src/utils/response.utils';
-import { Types } from 'mongoose';
 import { DeleteResult } from 'mongodb';
 
 @UseGuards(AuthGuard)
@@ -61,7 +60,7 @@ export class TasksController {
 
   @Post(':taskId/subtask')
   createSubtask(
-    @Param('taskId') taskId: Types.ObjectId,
+    @Param('taskId') taskId: string,
     @Request() req,
     @Body() data: CreateSubtask,
   ): Promise<Response<Subtask>> {

@@ -11,8 +11,8 @@ export type NotificationDocument = HydratedDocument<Notification>;
 
 @Schema({ timestamps: true, collection: 'notifications' })
 export class Notification {
-  @Prop({ type: ObjectId, required: true })
-  notificationId: ObjectId;
+  @Prop({ required: true })
+  notificationId: string;
 
   @Prop({ ref: 'User', required: true })
   userId: string;

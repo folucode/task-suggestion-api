@@ -43,7 +43,7 @@ export class LabelsService {
     const label = new Label();
     label.name = data.name;
     label.userId = user.userId;
-    label.labelId = new mongoose.mongo.ObjectId();
+    label.labelId = new mongoose.mongo.ObjectId().toString();
 
     const labelData = await this.labelModel.create(label);
 
