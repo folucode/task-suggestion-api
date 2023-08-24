@@ -34,6 +34,9 @@ export class Task {
   @Prop({ default: false })
   reminderOn: boolean;
 
+  @Prop({ default: false })
+  recurring: boolean;
+
   @Prop({ type: Date, default: null })
   due: Date;
 }

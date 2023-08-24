@@ -1,3 +1,5 @@
+import { RecurringTaskFrequency } from 'src/models/recurring-task.entity';
+
 export enum Priority {
   High = 'High',
   Medium = 'Medium',
@@ -16,7 +18,9 @@ export interface CreateTask {
   due?: Date;
   labelId?: string;
   reminderOn?: boolean;
-  times: [string];
+  times?: [string];
+  recurring?: boolean;
+  recurringFrequency?: RecurringTaskFrequency;
 }
 
 export interface UpdateTask {
@@ -26,7 +30,8 @@ export interface UpdateTask {
   priority?: Priority;
   due?: Date;
   reminderOn?: boolean;
-  times: [string];
+  times?: [string];
+  recurring?: boolean;
 }
 
 export interface CreateSubtask {

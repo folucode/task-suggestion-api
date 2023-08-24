@@ -11,6 +11,10 @@ import {
 import { Subtask, SubtaskSchema } from 'src/models/subtask.entity';
 import { Reminder, ReminderSchema } from 'src/models/reminder.entity';
 import { User, UserSchema } from 'src/models/user.entity';
+import {
+  RecurringTask,
+  RecurringTaskSchema,
+} from 'src/models/recurring-task.entity';
 
 @Module({
   imports: [
@@ -20,6 +24,7 @@ import { User, UserSchema } from 'src/models/user.entity';
       { name: Subtask.name, schema: SubtaskSchema },
       { name: Reminder.name, schema: ReminderSchema },
       { name: User.name, schema: UserSchema },
+      { name: RecurringTask.name, schema: RecurringTaskSchema },
     ]),
   ],
   providers: [TasksService],

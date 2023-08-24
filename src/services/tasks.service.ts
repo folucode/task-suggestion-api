@@ -1,3 +1,4 @@
+import { Status as TaskStatus } from './../dto/task.dto';
 import {
   NotificationPriority,
   NotificationStatus,
@@ -23,6 +24,11 @@ import * as momentTZ from 'moment-timezone';
 import { User, UserDocument } from 'src/models/user.entity';
 import Mailgun from 'mailgun.js';
 import * as formData from 'form-data';
+import {
+  RecurringTask,
+  RecurringTaskDocument,
+  RecurringTaskFrequency,
+} from 'src/models/recurring-task.entity';
 
 @Injectable()
 export class TasksService {
@@ -39,42 +45,94 @@ export class TasksService {
     private readonly reminderModel: Model<ReminderDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(RecurringTask.name)
+    private readonly recurringTaskModel: Model<RecurringTaskDocument>,
   ) {}
 
   async create(data: CreateTask, user): Promise<any> {
-    const taskId = new mongoose.mongo.ObjectId().toString();
+    try {
+      const taskId = new mongoose.mongo.ObjectId().toString();
 
-    const task = new Task();
-    task.taskId = taskId;
-    task.title = data.title;
-    task.note = data.note;
-    task.userId = user.userId;
-    task.priority = data.priority;
-    task.due = data.due;
+      const task = new Task();
+      task.taskId = taskId;
+      task.title = data.title;
+      task.note = data.note;
+      task.userId = user.userId;
+      task.priority = data.priority;
+      task.due = data.due;
 
-    const r = await this.taskModel.create(task);
+      const r = await this.taskModel.create(task);
 
-    if (data.reminderOn) {
-      const reminders = data.times.map((time) => {
-        const timeInISO = new Date(time).toISOString();
+      if (data.reminderOn) {
+        const reminders = data.times.map((time) => {
+          const timeInISO = new Date(time).toISOString();
 
-        return new this.reminderModel({
-          reminderId: new mongoose.mongo.ObjectId().toString(),
-          taskId,
-          userId: user.userId,
-          time: moment(timeInISO).utc().toString(),
-          sent: false,
+          return new this.reminderModel({
+            reminderId: new mongoose.mongo.ObjectId().toString(),
+            taskId,
+            userId: user.userId,
+            time: moment(timeInISO).utc().toString(),
+            sent: false,
+          });
         });
-      });
 
-      this.reminderModel.bulkSave(reminders);
+        this.reminderModel.bulkSave(reminders);
+      }
+
+      if (data.recurring) {
+        let nextDate = '';
+
+        switch (data.recurringFrequency) {
+          case RecurringTaskFrequency.DAILY:
+            nextDate = moment().utc().add(1, 'd').toISOString();
+            break;
+          case RecurringTaskFrequency.WEEKLY:
+            nextDate = moment().utc().add(1, 'w').toISOString();
+            break;
+          case RecurringTaskFrequency.HOURLY:
+            nextDate = moment().utc().add(1, 'h').toISOString();
+            break;
+          case RecurringTaskFrequency.WEEKDAYS:
+            nextDate = moment()
+              .utc()
+              .day(this.nextWeekday(moment().utc()))
+              .toISOString();
+            break;
+          case RecurringTaskFrequency.FORTNIGHTLY:
+            nextDate = moment().utc().add(2, 'w').toISOString();
+            break;
+          case RecurringTaskFrequency.MONTHLY:
+            nextDate = moment().utc().add(1, 'M').toISOString();
+            break;
+          case RecurringTaskFrequency.EVERY_3_MONTHS:
+            nextDate = moment().utc().add(3, 'M').toISOString();
+            break;
+          case RecurringTaskFrequency.EVERY_6_MONTHS:
+            nextDate = moment().utc().add(6, 'M').toISOString();
+            break;
+          case RecurringTaskFrequency.YEARLY:
+            nextDate = moment().utc().add(1, 'y').toISOString();
+            break;
+        }
+
+        const recurringTask = new RecurringTask();
+        recurringTask.recurringTaskId =
+          new mongoose.Types.ObjectId().toString();
+        recurringTask.frequency = data.recurringFrequency;
+        recurringTask.taskId = taskId;
+        recurringTask.nextDate = nextDate;
+
+        await this.recurringTaskModel.create(recurringTask);
+      }
+
+      return {
+        status: Status.Success,
+        message: 'task added successfully',
+        data: r,
+      };
+    } catch (error) {
+      this.logger.error(error.message);
     }
-
-    return {
-      status: Status.Success,
-      message: 'task added successfully',
-      data: r,
-    };
   }
 
   async findAll(user): Promise<Response<Task[]>> {
@@ -397,7 +455,7 @@ export class TasksService {
   }
 
   //Jobs
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  // @Cron(CronExpression.EVERY_10_SECONDS)
   async handleSendReminderCron() {
     const reminders = await this.reminderModel.find({ sent: false });
 
@@ -444,6 +502,76 @@ export class TasksService {
     );
   }
 
+  @Cron(CronExpression.EVERY_SECOND)
+  async handleRecurringTaskCron() {
+    const tasks = await this.taskModel.find({ recurring: true });
+
+    tasks.forEach(async (task) => {
+      const recurringTask = await this.recurringTaskModel.findOne({
+        taskId: task.taskId,
+      });
+
+      const user = await this.userModel.findOne({ userId: task.userId });
+
+      if (recurringTask !== null) {
+        const timeInISO = new Date(recurringTask.nextDate).toISOString();
+
+        const currentTimeInUserTZ = momentTZ().tz(user.timezone);
+
+        const recurringTaskDate = momentTZ(timeInISO).tz(user.timezone);
+
+        if (currentTimeInUserTZ.isSame(recurringTaskDate, 'minute')) {
+          await this.taskModel.findOneAndUpdate(
+            { taskId: recurringTask.taskId },
+            {
+              $set: {
+                status: TaskStatus.Pending,
+              },
+            },
+            {
+              new: true,
+            },
+          );
+
+          let nextDate = '';
+
+          switch (recurringTask.frequency) {
+            case RecurringTaskFrequency.DAILY:
+              nextDate = moment().utc().add(1, 'd').toISOString();
+              break;
+            case RecurringTaskFrequency.WEEKLY:
+              nextDate = moment().utc().add(1, 'w').toISOString();
+              break;
+            case RecurringTaskFrequency.HOURLY:
+              nextDate = moment().utc().add(1, 'h').toISOString();
+              break;
+            case RecurringTaskFrequency.WEEKDAYS:
+              nextDate = moment()
+                .utc()
+                .day(this.nextWeekday(moment().utc()))
+                .toISOString();
+              break;
+            case RecurringTaskFrequency.FORTNIGHTLY:
+              nextDate = moment().utc().add(2, 'w').toISOString();
+              break;
+            case RecurringTaskFrequency.MONTHLY:
+              nextDate = moment().utc().add(1, 'M').toISOString();
+              break;
+            case RecurringTaskFrequency.EVERY_3_MONTHS:
+              nextDate = moment().utc().add(3, 'M').toISOString();
+              break;
+            case RecurringTaskFrequency.EVERY_6_MONTHS:
+              nextDate = moment().utc().add(6, 'M').toISOString();
+              break;
+            case RecurringTaskFrequency.YEARLY:
+              nextDate = moment().utc().add(1, 'y').toISOString();
+              break;
+          }
+        }
+      }
+    });
+  }
+
   // @Cron(CronExpression.EVERY_5_SECONDS)
   async handleTasksWithDueDateCron() {
     const t = await this.getAllDueTasks();
@@ -457,4 +585,10 @@ export class TasksService {
     // 2. update notifications table after notification is sent
     // 3. update check parameter to check if a particular notification has been sent
   }
+
+  nextWeekday = (date) => {
+    const dayOfWeek = date.add(1, 'd').weekday();
+
+    return dayOfWeek === 6 ? 6 + 2 : dayOfWeek;
+  };
 }

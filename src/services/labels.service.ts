@@ -57,10 +57,9 @@ export class LabelsService {
   }
 
   async findOne(labelId: string, user): Promise<Response<Label>> {
-    console.log(labelId);
     const label = await this.labelModel.findOne({
-      _id: labelId,
-      // userId: user.userId,
+      labelId,
+      userId: user.userId,
     });
 
     if (label != null) {
