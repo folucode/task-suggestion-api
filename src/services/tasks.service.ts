@@ -29,6 +29,10 @@ import {
   RecurringTaskFrequency,
 } from 'src/models/recurring-task.entity';
 import { TasksGateway } from 'src/gateways/tasks.gateway';
+import {
+  TaskHistory,
+  TaskHistoryDocument,
+} from 'src/models/task-history.entity';
 
 @Injectable()
 export class TasksService {
@@ -48,6 +52,8 @@ export class TasksService {
     @InjectModel(RecurringTask.name)
     private readonly recurringTaskModel: Model<RecurringTaskDocument>,
     @Inject(TasksGateway) private readonly tasksGateway: TasksGateway,
+    @InjectModel(TaskHistory.name)
+    private readonly taskHistoryModel: Model<TaskHistoryDocument>,
   ) {}
 
   async create(data: CreateTask, userId: string) {
@@ -235,6 +241,12 @@ export class TasksService {
 
   async markAsDone(taskId: string, userId: string) {
     try {
+      const taskHistoryId = new mongoose.Types.ObjectId().toString();
+
+      const timeInISO = new Date().toISOString();
+
+      const dateCompleted = moment(timeInISO).utc().toString();
+
       const task = await this.taskModel.findOne({
         taskId,
         userId,
@@ -255,6 +267,13 @@ export class TasksService {
         { taskId, userId },
         { $set: { status: TaskStatus.Completed } },
       );
+
+      await this.taskHistoryModel.create({
+        userId,
+        taskId,
+        taskHistoryId,
+        dateCompleted,
+      });
 
       this.tasksGateway.server.emit('handleTask', {
         eventType: 'completeTask',

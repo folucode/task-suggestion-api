@@ -16,6 +16,7 @@ import {
   RecurringTaskSchema,
 } from 'src/models/recurring-task.entity';
 import { TasksGateway } from 'src/gateways/tasks.gateway';
+import { TaskHistory, TaskHistorySchema } from 'src/models/task-history.entity';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { TasksGateway } from 'src/gateways/tasks.gateway';
       { name: Reminder.name, schema: ReminderSchema },
       { name: User.name, schema: UserSchema },
       { name: RecurringTask.name, schema: RecurringTaskSchema },
+      { name: TaskHistory.name, schema: TaskHistorySchema },
     ]),
   ],
   providers: [TasksService, TasksGateway],
