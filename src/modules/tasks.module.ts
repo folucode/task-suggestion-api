@@ -15,6 +15,7 @@ import {
   RecurringTask,
   RecurringTaskSchema,
 } from 'src/models/recurring-task.entity';
+import { TasksGateway } from 'src/gateways/tasks.gateway';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import {
       { name: RecurringTask.name, schema: RecurringTaskSchema },
     ]),
   ],
-  providers: [TasksService],
+  providers: [TasksService, TasksGateway],
   controllers: [TasksController],
 })
 export class TasksModule {}

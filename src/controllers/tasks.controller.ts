@@ -37,11 +37,8 @@ export class TasksController {
   }
 
   @Post()
-  create(
-    @Body() createTaskDto: CreateTask,
-    @Request() req,
-  ): Promise<Response<Task>> {
-    return this.tasksService.create(createTaskDto, req.user);
+  create(@Body() createTaskDto: CreateTask, @Request() req) {
+    this.tasksService.create(createTaskDto, req.user.userId);
   }
 
   @Put(':taskId')
@@ -50,12 +47,12 @@ export class TasksController {
     @Body() taskData: UpdateTask,
     @Request() req,
   ) {
-    return this.tasksService.update(taskId, taskData, req.user);
+    this.tasksService.update(taskId, taskData, req.user.useId);
   }
 
-  @Put(':id/mark-as-done')
-  markAsDone(@Param('id') id: string, @Request() req): Promise<Task> {
-    return this.tasksService.markAsDone(id, req.user);
+  @Put(':taskId/mark-as-done')
+  markAsDone(@Param('taskId') taskId: string, @Request() req) {
+    this.tasksService.markAsDone(taskId, req.user.userId);
   }
 
   @Post(':taskId/subtask')
@@ -63,34 +60,29 @@ export class TasksController {
     @Param('taskId') taskId: string,
     @Request() req,
     @Body() data: CreateSubtask,
-  ): Promise<Response<Subtask>> {
-    return this.tasksService.createSubtask(taskId, req.user, data);
+  ) {
+    this.tasksService.createSubtask(taskId, req.user.userId, data);
   }
 
   @Put(':taskId/subtasks/:subtaskId')
   updateSubtask(
     @Param('taskId') taskId: string,
     @Param('subtaskId') subtaskId: string,
-    @Request() req,
     @Body() taskData: CreateSubtask,
-  ): Promise<Response<Subtask>> {
-    return this.tasksService.updateSubtask(taskId, subtaskId, taskData);
+  ) {
+    this.tasksService.updateSubtask(taskId, subtaskId, taskData);
   }
 
-  @Delete(':id')
-  removeTask(
-    @Param('id') id: string,
-    @Request() req,
-  ): Promise<Response<DeleteResult>> {
-    return this.tasksService.removeTask(id, req.user);
+  @Delete(':taskId')
+  removeTask(@Param('taskId') taskId: string, @Request() req) {
+    this.tasksService.removeTask(taskId, req.user.userId);
   }
 
   @Delete(':taskId/subtasks/:subtaskId')
   removeSubtask(
     @Param('taskId') taskId: string,
     @Param('subtaskId') subtaskId: string,
-    @Request() req,
-  ): Promise<Response<DeleteResult>> {
-    return this.tasksService.removeSubtask(taskId, subtaskId);
+  ) {
+    this.tasksService.removeSubtask(taskId, subtaskId);
   }
 }

@@ -4,7 +4,7 @@ import {
   NotificationStatus,
   NotificationTypes,
 } from './../utils/notification.utils';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Task, TaskDocument } from 'src/models/task.entity';
 import { CreateSubtask, CreateTask } from 'src/dto/task.dto';
 import { UpdateTask } from 'src/dto/task.dto';
@@ -17,7 +17,6 @@ import {
 } from 'src/models/notification.entity';
 import { Response, Status } from 'src/utils/response.utils';
 import { Subtask, SubtaskDocument } from 'src/models/subtask.entity';
-import { DeleteResult } from 'mongodb';
 import { Reminder, ReminderDocument } from 'src/models/reminder.entity';
 import * as moment from 'moment';
 import * as momentTZ from 'moment-timezone';
@@ -29,6 +28,7 @@ import {
   RecurringTaskDocument,
   RecurringTaskFrequency,
 } from 'src/models/recurring-task.entity';
+import { TasksGateway } from 'src/gateways/tasks.gateway';
 
 @Injectable()
 export class TasksService {
@@ -47,9 +47,10 @@ export class TasksService {
     private readonly userModel: Model<UserDocument>,
     @InjectModel(RecurringTask.name)
     private readonly recurringTaskModel: Model<RecurringTaskDocument>,
+    @Inject(TasksGateway) private readonly tasksGateway: TasksGateway,
   ) {}
 
-  async create(data: CreateTask, user): Promise<any> {
+  async create(data: CreateTask, userId: string) {
     try {
       const taskId = new mongoose.mongo.ObjectId().toString();
 
@@ -57,11 +58,11 @@ export class TasksService {
       task.taskId = taskId;
       task.title = data.title;
       task.note = data.note;
-      task.userId = user.userId;
+      task.userId = userId;
       task.priority = data.priority;
       task.due = data.due;
 
-      const r = await this.taskModel.create(task);
+      const newTask = await this.taskModel.create(task);
 
       if (data.reminderOn) {
         const reminders = data.times.map((time) => {
@@ -70,7 +71,7 @@ export class TasksService {
           return new this.reminderModel({
             reminderId: new mongoose.mongo.ObjectId().toString(),
             taskId,
-            userId: user.userId,
+            userId,
             time: moment(timeInISO).utc().toString(),
             sent: false,
           });
@@ -125,13 +126,16 @@ export class TasksService {
         await this.recurringTaskModel.create(recurringTask);
       }
 
-      return {
-        status: Status.Success,
-        message: 'task added successfully',
-        data: r,
-      };
+      this.tasksGateway.server.emit('handleTask', {
+        eventType: 'createTask',
+        data: {
+          status: Status.Success,
+          message: 'task successfully created',
+          data: newTask,
+        },
+      });
     } catch (error) {
-      this.logger.error(error.message);
+      this.tasksGateway.server.emit('createTask', error.message);
     }
   }
 
@@ -191,218 +195,303 @@ export class TasksService {
     };
   }
 
-  async update(
-    taskId: string,
-    updateTaskData: UpdateTask,
-    user,
-  ): Promise<Response<Task>> {
-    const task = await this.taskModel.findOne({
-      taskId: taskId,
-      userId: user.userId,
-    });
+  async update(taskId: string, updateTaskData: UpdateTask, userId: string) {
+    try {
+      const task = await this.taskModel.findOne({
+        taskId: taskId,
+        userId,
+      });
 
-    if (task == null) {
-      return {
+      if (task == null) {
+        this.tasksGateway.server.emit('handleTask', {
+          eventType: 'updateTask',
+          data: {
+            status: Status.Failure,
+            message: ' this task does not exist',
+            data: null,
+          },
+        });
+      }
+
+      const updatedTask = await this.taskModel
+        .findOneAndUpdate({ taskId }, { ...updateTaskData })
+        .select(['- _id', '- id']);
+
+      this.tasksGateway.server.emit('handleTask', {
+        eventType: 'updateTask',
+        data: {
+          status: Status.Success,
+          message: 'task updated successfully',
+          data: updatedTask,
+        },
+      });
+    } catch (error) {
+      this.tasksGateway.server.emit('updateTask', {
         status: Status.Failure,
-        message: ' this task does not exist',
-        data: null,
-      };
+        message: error.message,
+      });
     }
+  }
 
-    await this.taskModel.updateOne({ taskId }, { ...updateTaskData });
-
-    const updatedTask = await this.taskModel
-      .findOne({
+  async markAsDone(taskId: string, userId: string) {
+    try {
+      const task = await this.taskModel.findOne({
         taskId,
-        userId: user.userId,
-      })
-      .select(['- _id', '- id']);
+        userId,
+      });
 
-    return {
-      status: Status.Success,
-      message: 'task updated successfully',
-      data: updatedTask,
-    };
+      if (task == null) {
+        this.tasksGateway.server.emit('handleTask', {
+          eventType: 'completeTask',
+          data: {
+            status: Status.Failure,
+            message: 'task does not exist',
+            data: null,
+          },
+        });
+      }
+
+      const updatedTask = await this.taskModel.findOneAndUpdate(
+        { taskId, userId },
+        { $set: { status: TaskStatus.Completed } },
+      );
+
+      this.tasksGateway.server.emit('handleTask', {
+        eventType: 'completeTask',
+        data: {
+          status: Status.Success,
+          message: 'task updated successfully',
+          data: updatedTask,
+        },
+      });
+    } catch (error) {
+      this.tasksGateway.server.emit('completeTask', {
+        status: Status.Failure,
+        message: error.message,
+      });
+    }
   }
 
-  async markAsDone(taskId: string, user): Promise<Task> {
-    const task = await this.taskModel.findOneAndUpdate(
-      { _id: taskId, userId: user.userId },
-      { $set: { status: 'done' } },
-      { lean: true },
-    );
+  async removeTask(taskId: string, userId: string) {
+    try {
+      const task = await this.taskModel.findOne({ taskId, userId });
 
-    return task;
+      if (task == null) {
+        this.tasksGateway.server.emit('handleTask', {
+          eventType: 'deleteTask',
+          data: {
+            status: Status.Failure,
+            message: 'this task does not exist',
+            data: null,
+          },
+        });
+      }
 
-    // const task = await this.taskModel.findOne({
-    //   _id: taskId,
-    //   userId: user.userId,
-    // });
+      const d = await this.taskModel.deleteOne({ taskId, userId });
 
-    // task.status = 'done';
+      if (d.deletedCount < 1) {
+        this.tasksGateway.server.emit('handleTask', {
+          eventType: 'deleteTask',
+          data: {
+            status: Status.Failure,
+            message: 'could not delete task, something went wrong',
+            data: null,
+          },
+        });
+      }
 
-    // await this.taskModel.updateOne(
-    //   { taskId },
-    //   {
-    //     ...task,
-    //   },
-    // );
+      await this.subtaskModel.deleteMany({ parentTaskId: taskId });
 
-    // return true;
-  }
+      const tasks = await this.taskModel.find({ userId });
 
-  async removeTask(taskId: string, user): Promise<Response<DeleteResult>> {
-    const task = await this.taskModel.findOne({ taskId, userId: user.userId });
-
-    if (task == null) {
-      return {
+      this.tasksGateway.server.emit('handleTask', {
+        eventType: 'deleteTask',
+        data: {
+          status: Status.Success,
+          message: 'task deleted successfully',
+          data: tasks,
+        },
+      });
+    } catch (error) {
+      this.tasksGateway.server.emit('deleteTask', {
         status: Status.Failure,
-        message: 'this task does not exist',
-        data: null,
-      };
+        message: error.message,
+      });
     }
-
-    const r = await this.taskModel.deleteOne({ taskId, userId: user.userId });
-
-    if (r.deletedCount < 1) {
-      return {
-        status: Status.Failure,
-        message: 'could not delete task, something went wrong',
-        data: null,
-      };
-    }
-
-    await this.subtaskModel.deleteMany({ parentTaskId: taskId });
-
-    return {
-      status: Status.Success,
-      message: 'task deleted successfully',
-      data: [],
-    };
   }
 
   async createSubtask(
     taskId: string,
-    user,
+    userId: string,
     subtaskData: CreateSubtask,
-  ): Promise<Response<Subtask>> {
-    const task = await this.taskModel
-      .find({ taskId, userId: user.userId })
-      .exec();
+  ) {
+    try {
+      const task = await this.taskModel.findOne({ taskId, userId }).exec();
 
-    if (task.length < 1) {
-      return {
-        status: Status.Failure,
-        message: 'This parent task does not exist or has been deleted',
-        data: null,
-      };
+      if (task == null) {
+        this.tasksGateway.server.emit('handleSubtask', {
+          eventType: 'createSubtask',
+          data: {
+            status: Status.Failure,
+            message: 'This parent task does not exist or has been deleted',
+            data: null,
+          },
+        });
+      }
+
+      const subtaskTitleExist = await this.subtaskModel.findOne({
+        title: subtaskData.title,
+        parentTaskId: taskId,
+      });
+
+      if (subtaskTitleExist != null) {
+        this.tasksGateway.server.emit('handleSubtask', {
+          eventType: 'createSubtask',
+          data: {
+            status: Status.Failure,
+            message: `a subtask with title ${subtaskData.title} already exist`,
+            data: null,
+          },
+        });
+      }
+
+      const subtask = new Subtask();
+      subtask.due = subtaskData.due;
+      subtask.labelId = subtaskData.labelId;
+      subtask.note = subtaskData.note;
+      subtask.parentTaskId = taskId;
+      subtask.priority = subtaskData.priority;
+      subtask.subtaskId = new mongoose.mongo.ObjectId().toString();
+      subtask.title = subtaskData.title;
+
+      const newSubtask = await this.subtaskModel.create(subtask);
+
+      this.tasksGateway.server.emit('handleSubtask', {
+        eventType: 'createSubtask',
+        data: {
+          status: Status.Success,
+          message: 'subtask added successfully',
+          data: newSubtask,
+        },
+      });
+    } catch (error) {
+      this.tasksGateway.server.emit('handleSubtask', {
+        eventType: 'createSubtask',
+        data: {
+          status: Status.Failure,
+          message: error.message,
+        },
+      });
     }
-
-    const subtaskTitleExist = await this.subtaskModel.find({
-      title: subtaskData.title,
-      parentTaskId: taskId,
-    });
-
-    if (subtaskTitleExist.length > 0) {
-      return {
-        status: Status.Failure,
-        message: `a subtask with title ${subtaskData.title} already exist`,
-        data: null,
-      };
-    }
-
-    const subtask = new Subtask();
-    subtask.due = subtaskData.due;
-    subtask.labelId = subtaskData.labelId;
-    subtask.note = subtaskData.note;
-    subtask.parentTaskId = taskId;
-    subtask.priority = subtaskData.priority;
-    subtask.subtaskId = new mongoose.mongo.ObjectId().toString();
-    subtask.title = subtaskData.title;
-
-    const r = await this.subtaskModel.create(subtask);
-
-    return {
-      status: Status.Success,
-      message: 'subtask added successfully',
-      data: r,
-    };
   }
 
   async updateSubtask(
     taskId: string,
     subtaskId: string,
     taskData: CreateSubtask,
-  ): Promise<Response<Subtask>> {
-    const subtask = await this.subtaskModel.findOne({
-      parentTaskId: taskId,
-      subtaskId,
-    });
+  ) {
+    try {
+      const subtask = await this.subtaskModel.findOne({
+        parentTaskId: taskId,
+        subtaskId,
+      });
 
-    if (subtask == null) {
-      return {
-        status: Status.Failure,
-        message: 'this task does not exist',
-        data: null,
-      };
+      if (subtask == null) {
+        this.tasksGateway.server.emit('handleSubtask', {
+          eventType: 'updateSubtask',
+          data: {
+            status: Status.Failure,
+            message: 'This task does not exist or has been deleted',
+            data: null,
+          },
+        });
+      }
+
+      const updatedTask = await this.subtaskModel.findOneAndUpdate(
+        { subtaskId },
+        { ...taskData },
+      );
+
+      if (updatedTask == null) {
+        this.tasksGateway.server.emit('handleSubtask', {
+          eventType: 'updateSubtask',
+          data: {
+            status: Status.Failure,
+            message: 'could not update task, something went wrong',
+            data: null,
+          },
+        });
+      }
+
+      this.tasksGateway.server.emit('handleSubtask', {
+        eventType: 'updateSubtask',
+        data: {
+          status: Status.Success,
+          message: 'task updated successfully',
+          data: updatedTask,
+        },
+      });
+    } catch (error) {
+      this.tasksGateway.server.emit('handleSubtask', {
+        eventType: 'updateSubtask',
+        data: {
+          status: Status.Success,
+          message: error.message,
+        },
+      });
     }
-
-    const u = await this.taskModel.updateOne({ subtaskId }, { ...taskData });
-
-    if (u.modifiedCount < 1) {
-      return {
-        status: Status.Failure,
-        message: 'could not update task, something went wrong',
-        data: null,
-      };
-    }
-
-    const updatedSubtask = await this.subtaskModel.find({
-      parentTaskId: taskId,
-      subtaskId,
-    });
-
-    return {
-      status: Status.Success,
-      message: 'task updated successfully',
-      data: updatedSubtask,
-    };
   }
 
-  async removeSubtask(
-    taskId: string,
-    subtaskId: string,
-  ): Promise<Response<DeleteResult>> {
-    const subtask = await this.subtaskModel.findOne({
-      parentTaskId: taskId,
-      subtaskId,
-    });
+  async removeSubtask(taskId: string, subtaskId: string) {
+    try {
+      const subtask = await this.subtaskModel.findOne({
+        parentTaskId: taskId,
+        subtaskId,
+      });
 
-    if (subtask == null) {
-      return {
-        status: Status.Failure,
-        message: 'task does not exist',
-        data: null,
-      };
+      if (subtask == null) {
+        this.tasksGateway.server.emit('handleSubtask', {
+          eventType: 'deleteSubtask',
+          data: {
+            status: Status.Failure,
+            message: 'task does not exist',
+            data: null,
+          },
+        });
+      }
+      const d = await this.subtaskModel.deleteOne({
+        parentTaskId: taskId,
+        subtaskId,
+      });
+
+      if (d.deletedCount < 1) {
+        this.tasksGateway.server.emit('handleSubtask', {
+          eventType: 'deleteSubtask',
+          data: {
+            status: Status.Failure,
+            message: 'could not delete task, something went wrong',
+            data: null,
+          },
+        });
+      }
+
+      this.tasksGateway.server.emit('handleSubtask', {
+        eventType: 'deleteSubtask',
+        data: {
+          status: Status.Success,
+          message: 'task deleted successfully',
+          data: [],
+        },
+      });
+    } catch (error) {
+      this.tasksGateway.server.emit('handleSubtask', {
+        eventType: 'deleteSubtask',
+        data: {
+          status: Status.Success,
+          message: error.message,
+        },
+      });
     }
-    const d = await this.subtaskModel.deleteOne({
-      parentTaskId: taskId,
-      subtaskId,
-    });
-
-    if (d.deletedCount < 1) {
-      return {
-        status: Status.Failure,
-        message: 'could not delete task, something went wrong',
-        data: null,
-      };
-    }
-
-    return {
-      status: Status.Success,
-      message: 'task deleted successfully',
-      data: [],
-    };
   }
 
   async getAllDueTasks(): Promise<Notification[]> {

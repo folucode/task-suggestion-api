@@ -24,6 +24,7 @@ export interface CreateTask {
 }
 
 export interface UpdateTask {
+  taskId?: string;
   title?: string;
   note?: string;
   status?: Status;
