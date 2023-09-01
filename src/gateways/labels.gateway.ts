@@ -18,9 +18,7 @@ export class LabelsGateway {
   server: Server;
 
   @SubscribeMessage('handleLabels')
-  handleLabels(
-    @MessageBody() data: { eventType: string; data: Response<Label> },
-  ) {
+  handleLabels(@MessageBody() data: { eventType: string; data }) {
     const { eventType, data: eventData } = data;
 
     this.server.emit(eventType, eventData);

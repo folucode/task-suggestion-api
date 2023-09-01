@@ -1,19 +1,51 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { CreateUserDto } from '../dto/user.dto';
-import { User } from '../models/user.entity';
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  Param,
+  Request,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from '../services/users.service';
+import { Response } from 'express';
+import { AuthGuard } from 'src/guards/auth.guard';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto): Promise<User> {
-    return this.usersService.create(createUserDto);
+  @UseGuards(AuthGuard)
+  @Get()
+  async findOne(@Res() res: Response, @Request() req) {
+    try {
+      const { statusCode, data } = await this.usersService.findOne(
+        req.user.userId,
+      );
+
+      res.status(statusCode).json(data);
+    } catch (error) {
+      res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: 'Internal server error', message: error.message });
+    }
   }
 
-  @Get()
-  findAll(): Promise<User[]> {
-    return this.usersService.findAll();
+  @Get(':username')
+  async findByUsername(
+    @Res() res: Response,
+    @Param('username') username: string,
+  ) {
+    try {
+      const { statusCode, data } = await this.usersService.findByUsername(
+        username,
+      );
+
+      res.status(statusCode).json(data);
+    } catch (error) {
+      res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: 'Internal server error', message: error.message });
+    }
   }
 }

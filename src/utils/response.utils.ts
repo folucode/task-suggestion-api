@@ -3,8 +3,13 @@ export enum Status {
   Failure = 'failure',
 }
 
-export interface Response<T> {
+interface DataFormat {
   message: string;
   status: Status;
-  data: T | T[] | null | [];
+  data: any;
+}
+
+export interface Response {
+  statusCode: number;
+  data: DataFormat;
 }

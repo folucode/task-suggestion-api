@@ -3,20 +3,19 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Post,
   Put,
   Request,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { CreateSubtask, CreateTask } from 'src/dto/task.dto';
 import { UpdateTask } from 'src/dto/task.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
-import { Task } from 'src/models/task.entity';
-import { Subtask } from 'src/models/subtask.entity';
 import { TasksService } from 'src/services/tasks.service';
-import { Response } from 'src/utils/response.utils';
-import { DeleteResult } from 'mongodb';
+import { Response } from 'express';
 
 @UseGuards(AuthGuard)
 @Controller('tasks')
@@ -24,16 +23,36 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get()
-  findAll(@Request() req): Promise<Response<Task[]>> {
-    return this.tasksService.findAll(req.user);
+  async findAll(@Res() res: Response, @Request() req) {
+    try {
+      const { statusCode, data } = await this.tasksService.findAll(req.user);
+
+      res.status(statusCode).json(data);
+    } catch (error) {
+      res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: 'Internal server error', message: error.message });
+    }
   }
 
   @Get(':id')
-  findOne(
+  async findOne(
+    @Res() res: Response,
     @Param('id') taskID: string,
     @Request() req,
-  ): Promise<Response<Task>> {
-    return this.tasksService.findOne(taskID, req.user);
+  ) {
+    try {
+      const { statusCode, data } = await this.tasksService.findOne(
+        taskID,
+        req.user,
+      );
+
+      res.status(statusCode).json(data);
+    } catch (error) {
+      res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: 'Internal server error', message: error.message });
+    }
   }
 
   @Post()

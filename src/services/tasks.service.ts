@@ -4,7 +4,7 @@ import {
   NotificationStatus,
   NotificationTypes,
 } from './../utils/notification.utils';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { Task, TaskDocument } from 'src/models/task.entity';
 import { CreateSubtask, CreateTask } from 'src/dto/task.dto';
 import { UpdateTask } from 'src/dto/task.dto';
@@ -145,11 +145,11 @@ export class TasksService {
     }
   }
 
-  async findAll(user): Promise<Response<Task[]>> {
+  async findAll(userId: string): Promise<Response> {
     const tasks = await this.taskModel.aggregate([
       {
         $match: {
-          userId: user.userId,
+          userId,
         },
       },
       {
@@ -177,27 +177,36 @@ export class TasksService {
     ]);
 
     return {
-      status: Status.Success,
-      message: 'tasks fetched successfully',
-      data: tasks,
+      statusCode: HttpStatus.OK,
+      data: {
+        status: Status.Success,
+        message: 'tasks fetched successfully',
+        data: tasks,
+      },
     };
   }
 
-  async findOne(taskId: string, user): Promise<Response<Task>> {
-    const task = await this.taskModel.findOne({ taskId, userId: user.userId });
+  async findOne(taskId: string, userId: string): Promise<Response> {
+    const task = await this.taskModel.findOne({ taskId, userId });
 
     if (task == null) {
       return {
-        status: Status.Failure,
-        message: 'this task does not exist',
-        data: null,
+        statusCode: HttpStatus.NOT_FOUND,
+        data: {
+          status: Status.Failure,
+          message: 'this task does not exist',
+          data: null,
+        },
       };
     }
 
     return {
-      status: Status.Success,
-      message: 'task fetched successfully',
-      data: task,
+      statusCode: HttpStatus.OK,
+      data: {
+        status: Status.Success,
+        message: 'task fetched successfully',
+        data: task,
+      },
     };
   }
 

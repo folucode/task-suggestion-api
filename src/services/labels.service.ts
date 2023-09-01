@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { CreateLabel } from 'src/dto/label.dto';
@@ -14,16 +14,19 @@ export class LabelsService {
     @Inject(LabelsGateway) private readonly labelsGateway: LabelsGateway,
   ) {}
 
-  async findAll(user): Promise<Response<Label[]>> {
+  async findAll(user): Promise<Response> {
     const labels = await this.labelModel
       .find({ userId: user.userId })
       .lean(true)
       .exec();
 
     return {
-      message: 'labels successfully fetched',
-      status: Status.Success,
-      data: labels,
+      statusCode: HttpStatus.OK,
+      data: {
+        message: 'labels successfully fetched',
+        status: Status.Success,
+        data: labels,
+      },
     };
   }
 
@@ -63,7 +66,7 @@ export class LabelsService {
     }
   }
 
-  async findOne(labelId: string, userId: string): Promise<Response<Label>> {
+  async findOne(labelId: string, userId: string): Promise<Response> {
     const label = await this.labelModel.findOne({
       labelId,
       userId,
@@ -71,16 +74,22 @@ export class LabelsService {
 
     if (label != null) {
       return {
-        status: Status.Success,
-        message: 'label fetched successfully',
-        data: label,
+        statusCode: HttpStatus.OK,
+        data: {
+          status: Status.Success,
+          message: 'label fetched successfully',
+          data: label,
+        },
       };
     }
 
     return {
-      status: Status.Failure,
-      message: 'label not found',
-      data: [],
+      statusCode: HttpStatus.NOT_FOUND,
+      data: {
+        status: Status.Failure,
+        message: 'label not found',
+        data: [],
+      },
     };
   }
 

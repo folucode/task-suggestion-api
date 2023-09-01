@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from '../dto/user.dto';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { User } from '../models/user.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { Model } from 'mongoose';
+import { Response, Status } from 'src/utils/response.utils';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -11,21 +11,51 @@ export class UsersService {
     private readonly userModel: Model<User>,
   ) {}
 
-  create(createUserDto: CreateUserDto): Promise<User> {
-    const userId = new mongoose.mongo.ObjectId().toString();
-    const user = new User();
-    user.userId = userId;
-    user.username = createUserDto.username;
-    user.password = createUserDto.password;
+  async findOne(userId: string): Promise<Response> {
+    const user = await this.userModel.findOne({ userId });
 
-    return this.userModel.create(user);
+    if (user == null) {
+      return {
+        statusCode: HttpStatus.NOT_FOUND,
+        data: {
+          status: Status.Failure,
+          message: 'user does not exist',
+          data: null,
+        },
+      };
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      data: {
+        status: Status.Success,
+        message: 'user profile retrieved successfully',
+        data: user,
+      },
+    };
   }
 
-  async findAll(): Promise<User[]> {
-    return this.userModel.find();
-  }
+  async findByUsername(username: string): Promise<Response> {
+    const user = await this.userModel.findOne({ username });
 
-  findByUsername(username: string): Promise<User> {
-    return this.userModel.findOne({ username });
+    if (user == null) {
+      return {
+        statusCode: HttpStatus.OK,
+        data: {
+          status: Status.Success,
+          message: 'username is available',
+          data: null,
+        },
+      };
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      data: {
+        status: Status.Failure,
+        message: 'username is not available',
+        data: null,
+      },
+    };
   }
 }
