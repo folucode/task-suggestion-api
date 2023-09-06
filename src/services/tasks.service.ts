@@ -4,7 +4,7 @@ import {
   NotificationStatus,
   NotificationTypes,
 } from './../utils/notification.utils';
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Task, TaskDocument } from 'src/models/task.entity';
 import { CreateSubtask, CreateTask } from 'src/dto/task.dto';
 import { UpdateTask } from 'src/dto/task.dto';
@@ -51,42 +51,42 @@ export class TasksService {
     private readonly userModel: Model<UserDocument>,
     @InjectModel(RecurringTask.name)
     private readonly recurringTaskModel: Model<RecurringTaskDocument>,
-    @Inject(TasksGateway) private readonly tasksGateway: TasksGateway,
+    private readonly tasksGateway: TasksGateway,
     @InjectModel(TaskHistory.name)
     private readonly taskHistoryModel: Model<TaskHistoryDocument>,
   ) {}
 
   async create(data: CreateTask, userId: string) {
+    console.log(data);
+    
     try {
       const taskId = new mongoose.mongo.ObjectId().toString();
 
       const task = new Task();
       task.taskId = taskId;
-      task.title = data.title;
-      task.note = data.note;
+      task.name = data.name;
+      task.description = data.description;
       task.userId = userId;
       task.priority = data.priority;
-      task.due = data.due;
+      task.dueDate = data.dueDate;
+      task.reminderOn = data.reminderOn;
+      task.isRecurring = data.isRecurring;
 
-      const newTask = await this.taskModel.create(task);
+      await this.taskModel.create(task);
 
       if (data.reminderOn) {
-        const reminders = data.times.map((time) => {
-          const timeInISO = new Date(time).toISOString();
+        const timeInISO = new Date(data.reminderTime).toISOString();
 
-          return new this.reminderModel({
-            reminderId: new mongoose.mongo.ObjectId().toString(),
-            taskId,
-            userId,
-            time: moment(timeInISO).utc().toString(),
-            sent: false,
-          });
+        await this.reminderModel.create({
+          reminderId: new mongoose.mongo.ObjectId().toString(),
+          taskId,
+          userId,
+          time: moment(timeInISO).utc().toString(),
+          sent: false,
         });
-
-        this.reminderModel.bulkSave(reminders);
       }
 
-      if (data.recurring) {
+      if (data.isRecurring) {
         let nextDate = '';
 
         switch (data.recurringFrequency) {
@@ -132,13 +132,11 @@ export class TasksService {
         await this.recurringTaskModel.create(recurringTask);
       }
 
-      this.tasksGateway.server.emit('handleTask', {
-        eventType: 'createTask',
-        data: {
-          status: Status.Success,
-          message: 'task successfully created',
-          data: newTask,
-        },
+      await this.taskModel.find({ userId });
+
+      this.tasksGateway.server.emit('createTask', {
+        status: Status.Success,
+        message: 'task successfully created',
       });
     } catch (error) {
       this.tasksGateway.server.emit('createTask', error.message);
@@ -218,27 +216,22 @@ export class TasksService {
       });
 
       if (task == null) {
-        this.tasksGateway.server.emit('handleTask', {
-          eventType: 'updateTask',
-          data: {
-            status: Status.Failure,
-            message: ' this task does not exist',
-            data: null,
-          },
+        this.tasksGateway.server.emit('updateTask', {
+          status: Status.Failure,
+          message: ' this task does not exist',
+          data: null,
         });
       }
 
-      const updatedTask = await this.taskModel
-        .findOneAndUpdate({ taskId }, { ...updateTaskData })
+      const { reminderTime, ...data } = updateTaskData;
+
+      await this.taskModel
+        .findOneAndUpdate({ taskId }, { data })
         .select(['- _id', '- id']);
 
-      this.tasksGateway.server.emit('handleTask', {
-        eventType: 'updateTask',
-        data: {
-          status: Status.Success,
-          message: 'task updated successfully',
-          data: updatedTask,
-        },
+      this.tasksGateway.server.emit('updateTask', {
+        status: Status.Success,
+        message: 'task updated successfully',
       });
     } catch (error) {
       this.tasksGateway.server.emit('updateTask', {
@@ -272,7 +265,7 @@ export class TasksService {
         });
       }
 
-      const updatedTask = await this.taskModel.findOneAndUpdate(
+      await this.taskModel.findOneAndUpdate(
         { taskId, userId },
         { $set: { status: TaskStatus.Completed } },
       );
@@ -284,13 +277,9 @@ export class TasksService {
         dateCompleted,
       });
 
-      this.tasksGateway.server.emit('handleTask', {
-        eventType: 'completeTask',
-        data: {
-          status: Status.Success,
-          message: 'task updated successfully',
-          data: updatedTask,
-        },
+      this.tasksGateway.server.emit('completeTask', {
+        status: Status.Success,
+        message: 'task updated successfully',
       });
     } catch (error) {
       this.tasksGateway.server.emit('completeTask', {
@@ -305,40 +294,27 @@ export class TasksService {
       const task = await this.taskModel.findOne({ taskId, userId });
 
       if (task == null) {
-        this.tasksGateway.server.emit('handleTask', {
-          eventType: 'deleteTask',
-          data: {
-            status: Status.Failure,
-            message: 'this task does not exist',
-            data: null,
-          },
+        this.tasksGateway.server.emit('deleteTask', {
+          status: Status.Failure,
+          message: 'this task does not exist',
         });
       }
 
       const d = await this.taskModel.deleteOne({ taskId, userId });
 
       if (d.deletedCount < 1) {
-        this.tasksGateway.server.emit('handleTask', {
-          eventType: 'deleteTask',
-          data: {
-            status: Status.Failure,
-            message: 'could not delete task, something went wrong',
-            data: null,
-          },
+        this.tasksGateway.server.emit('deleteTask', {
+          status: Status.Failure,
+          message: 'could not delete task, something went wrong',
         });
       }
 
       await this.subtaskModel.deleteMany({ parentTaskId: taskId });
 
-      const tasks = await this.taskModel.find({ userId });
-
-      this.tasksGateway.server.emit('handleTask', {
-        eventType: 'deleteTask',
-        data: {
-          status: Status.Success,
-          message: 'task deleted successfully',
-          data: tasks,
-        },
+      this.tasksGateway.server.emit('deleteTask', {
+        status: Status.Success,
+        message: 'task deleted successfully',
+        data: taskId,
       });
     } catch (error) {
       this.tasksGateway.server.emit('deleteTask', {
@@ -354,61 +330,46 @@ export class TasksService {
     subtaskData: CreateSubtask,
   ) {
     try {
-      const task = await this.taskModel.findOne({ taskId, userId }).exec();
+      const task = await this.taskModel.findOne({ taskId, userId });
 
       if (task == null) {
-        this.tasksGateway.server.emit('handleSubtask', {
-          eventType: 'createSubtask',
-          data: {
-            status: Status.Failure,
-            message: 'This parent task does not exist or has been deleted',
-            data: null,
-          },
+        this.tasksGateway.server.emit('createSubtask', {
+          status: Status.Failure,
+          message: 'This parent task does not exist or has been deleted',
         });
       }
 
       const subtaskTitleExist = await this.subtaskModel.findOne({
-        title: subtaskData.title,
+        name: subtaskData.name,
         parentTaskId: taskId,
       });
 
       if (subtaskTitleExist != null) {
-        this.tasksGateway.server.emit('handleSubtask', {
-          eventType: 'createSubtask',
-          data: {
-            status: Status.Failure,
-            message: `a subtask with title ${subtaskData.title} already exist`,
-            data: null,
-          },
+        this.tasksGateway.server.emit('createSubtask', {
+          status: Status.Failure,
+          message: `a subtask with title ${subtaskData.name} already exist`,
         });
       }
 
       const subtask = new Subtask();
-      subtask.due = subtaskData.due;
+      subtask.dueDate = subtaskData.dueDate;
       subtask.labelId = subtaskData.labelId;
-      subtask.note = subtaskData.note;
+      subtask.description = subtaskData.description;
       subtask.parentTaskId = taskId;
       subtask.priority = subtaskData.priority;
       subtask.subtaskId = new mongoose.mongo.ObjectId().toString();
-      subtask.title = subtaskData.title;
+      subtask.name = subtaskData.name;
 
-      const newSubtask = await this.subtaskModel.create(subtask);
+      await this.subtaskModel.create(subtask);
 
-      this.tasksGateway.server.emit('handleSubtask', {
-        eventType: 'createSubtask',
-        data: {
-          status: Status.Success,
-          message: 'subtask added successfully',
-          data: newSubtask,
-        },
+      this.tasksGateway.server.emit('createSubtask', {
+        status: Status.Success,
+        message: 'subtask added successfully',
       });
     } catch (error) {
-      this.tasksGateway.server.emit('handleSubtask', {
-        eventType: 'createSubtask',
-        data: {
-          status: Status.Failure,
-          message: error.message,
-        },
+      this.tasksGateway.server.emit('createSubtask', {
+        status: Status.Failure,
+        message: error.message,
       });
     }
   }
@@ -425,13 +386,9 @@ export class TasksService {
       });
 
       if (subtask == null) {
-        this.tasksGateway.server.emit('handleSubtask', {
-          eventType: 'updateSubtask',
-          data: {
-            status: Status.Failure,
-            message: 'This task does not exist or has been deleted',
-            data: null,
-          },
+        this.tasksGateway.server.emit('updateSubtask', {
+          status: Status.Failure,
+          message: 'This task does not exist or has been deleted',
         });
       }
 
@@ -441,31 +398,20 @@ export class TasksService {
       );
 
       if (updatedTask == null) {
-        this.tasksGateway.server.emit('handleSubtask', {
-          eventType: 'updateSubtask',
-          data: {
-            status: Status.Failure,
-            message: 'could not update task, something went wrong',
-            data: null,
-          },
+        this.tasksGateway.server.emit('updateSubtask', {
+          status: Status.Failure,
+          message: 'could not update task, something went wrong',
         });
       }
 
-      this.tasksGateway.server.emit('handleSubtask', {
-        eventType: 'updateSubtask',
-        data: {
-          status: Status.Success,
-          message: 'task updated successfully',
-          data: updatedTask,
-        },
+      this.tasksGateway.server.emit('updateSubtask', {
+        status: Status.Success,
+        message: 'task updated successfully',
       });
     } catch (error) {
-      this.tasksGateway.server.emit('handleSubtask', {
-        eventType: 'updateSubtask',
-        data: {
-          status: Status.Success,
-          message: error.message,
-        },
+      this.tasksGateway.server.emit('updateSubtask', {
+        status: Status.Success,
+        message: error.message,
       });
     }
   }
@@ -478,46 +424,32 @@ export class TasksService {
       });
 
       if (subtask == null) {
-        this.tasksGateway.server.emit('handleSubtask', {
-          eventType: 'deleteSubtask',
-          data: {
-            status: Status.Failure,
-            message: 'task does not exist',
-            data: null,
-          },
+        this.tasksGateway.server.emit('deleteSubtask', {
+          status: Status.Failure,
+          message: 'task does not exist',
         });
       }
+
       const d = await this.subtaskModel.deleteOne({
         parentTaskId: taskId,
         subtaskId,
       });
 
       if (d.deletedCount < 1) {
-        this.tasksGateway.server.emit('handleSubtask', {
-          eventType: 'deleteSubtask',
-          data: {
-            status: Status.Failure,
-            message: 'could not delete task, something went wrong',
-            data: null,
-          },
+        this.tasksGateway.server.emit('deleteSubtask', {
+          status: Status.Failure,
+          message: 'could not delete task, something went wrong',
         });
       }
 
-      this.tasksGateway.server.emit('handleSubtask', {
-        eventType: 'deleteSubtask',
-        data: {
-          status: Status.Success,
-          message: 'task deleted successfully',
-          data: [],
-        },
+      this.tasksGateway.server.emit('deleteSubtask', {
+        status: Status.Success,
+        message: 'task deleted successfully',
       });
     } catch (error) {
-      this.tasksGateway.server.emit('handleSubtask', {
-        eventType: 'deleteSubtask',
-        data: {
-          status: Status.Success,
-          message: error.message,
-        },
+      this.tasksGateway.server.emit('deleteSubtask', {
+        status: Status.Success,
+        message: error.message,
       });
     }
   }
@@ -527,12 +459,12 @@ export class TasksService {
 
     if (tasks.length < 1) return;
 
-    const tasksWithDueDate = tasks.filter((task) => task.due != null);
+    const tasksWithDueDate = tasks.filter((task) => task.dueDate != null);
 
     const result = await Promise.all(
       tasksWithDueDate.map(async (taskWithDueDate) => {
         const currentTime = new Date().getTime();
-        const timeDue = new Date(taskWithDueDate.due).getTime();
+        const timeDue = new Date(taskWithDueDate.dueDate).getTime();
 
         const timeDifference = timeDue - currentTime;
 
@@ -541,7 +473,7 @@ export class TasksService {
         const d = await this.notificationModel.find({
           userId: taskWithDueDate.userId,
           type: NotificationTypes.DueDate,
-          content: `Task ${taskWithDueDate.title} is due soon`,
+          content: `Task ${taskWithDueDate.name} is due soon`,
         });
 
         const inNotificationsTable = d.length < 1;
@@ -554,7 +486,7 @@ export class TasksService {
             notificationId: new mongoose.Types.ObjectId().toString(),
             userId: taskWithDueDate.userId,
             type: NotificationTypes.DueDate,
-            content: `Task ${taskWithDueDate.title} is due soon`,
+            content: `Task ${taskWithDueDate.name} is due soon`,
             status: NotificationStatus.Unread,
             triggeredBy: 'system',
             metadata: JSON.stringify(taskWithDueDate),
@@ -602,7 +534,7 @@ export class TasksService {
               from: 'TaskApp <mail@taskapp.com>',
               to: user.email,
               subject: 'Reminder Notification',
-              text: `Reminder for ${task.title}`,
+              text: `Reminder for ${task.name}`,
             });
 
             this.logger.log(r);

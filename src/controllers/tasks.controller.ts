@@ -25,7 +25,9 @@ export class TasksController {
   @Get()
   async findAll(@Res() res: Response, @Request() req) {
     try {
-      const { statusCode, data } = await this.tasksService.findAll(req.user);
+      const { statusCode, data } = await this.tasksService.findAll(
+        req.user.userId,
+      );
 
       res.status(statusCode).json(data);
     } catch (error) {
@@ -44,7 +46,7 @@ export class TasksController {
     try {
       const { statusCode, data } = await this.tasksService.findOne(
         taskID,
-        req.user,
+        req.user.userId,
       );
 
       res.status(statusCode).json(data);
@@ -66,7 +68,7 @@ export class TasksController {
     @Body() taskData: UpdateTask,
     @Request() req,
   ) {
-    this.tasksService.update(taskId, taskData, req.user.useId);
+    this.tasksService.update(taskId, taskData, req.user.userId);
   }
 
   @Put(':taskId/mark-as-done')

@@ -12,36 +12,36 @@ export enum Status {
 }
 
 export interface CreateTask {
-  title: string;
-  note?: string;
+  name: string;
+  description?: string;
   priority: Priority;
-  due?: Date;
+  dueDate?: Date;
   labelId?: string;
   reminderOn?: boolean;
-  times?: [string];
-  recurring?: boolean;
+  reminderTime?: string;
+  isRecurring?: boolean;
   recurringFrequency?: RecurringTaskFrequency;
 }
 
 export interface UpdateTask {
   taskId?: string;
-  title?: string;
-  note?: string;
+  name?: string;
+  description?: string;
   status?: Status;
   priority?: Priority;
-  due?: Date;
+  dueDate?: Date;
   reminderOn?: boolean;
-  times?: [string];
-  recurring?: boolean;
+  reminderTime?: [string];
+  isRecurring?: boolean;
 }
 
 export interface CreateSubtask {
-  title: string;
-  note?: string;
+  name: string;
+  description?: string;
   priority: Priority;
   parentTaskId: string;
   labelId?: string;
-  due?: Date;
+  dueDate?: Date;
   status?: Status;
 }
 

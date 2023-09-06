@@ -13,13 +13,13 @@ export class Subtask {
   parentTaskId: string;
 
   @Prop({ required: true })
-  title: string;
+  name: string;
 
   @Prop({ enum: Status, default: Status.Pending })
   status: Status;
 
   @Prop({ type: Date, default: null })
-  due: Date;
+  dueDate: Date;
 
   @Prop({ enum: Priority, required: true })
   priority: Priority;
@@ -28,7 +28,7 @@ export class Subtask {
   labelId: string;
 
   @Prop({ default: null })
-  note: string;
+  description: string;
 }
 
 export const SubtaskSchema = SchemaFactory.createForClass(Subtask);

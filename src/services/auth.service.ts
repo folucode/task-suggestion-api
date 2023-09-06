@@ -48,7 +48,7 @@ export class AuthService {
       };
     }
 
-    const access_token = await this.jwtService.signAsync({
+    const accessToken = await this.jwtService.signAsync({
       username: user.username,
       userId: user.userId,
     });
@@ -58,7 +58,7 @@ export class AuthService {
       data: {
         status: Status.Success,
         message: 'login successful',
-        data: access_token,
+        data: { accessToken },
       },
     };
   }
@@ -89,7 +89,7 @@ export class AuthService {
       password: hash,
     });
 
-    const access_token = await this.jwtService.signAsync({
+    const accessToken = await this.jwtService.signAsync({
       username: userData.username,
       userId: userData.userId,
       timezone,
@@ -102,7 +102,7 @@ export class AuthService {
       data: {
         status: Status.Success,
         message: 'sign up was successful',
-        data: { access_token, username },
+        data: { accessToken, username },
       },
     };
   }

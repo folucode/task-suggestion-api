@@ -17,28 +17,28 @@ export class Task {
   userId: string;
 
   @Prop({ required: true })
-  title: string;
+  name: string;
 
-  @Prop({ required: true, enum: Priority })
-  priority: string;
+  @Prop({ default: null })
+  priority: Priority;
 
   @Prop({ text: true, default: null })
-  note: string;
+  description: string;
 
   @Prop({ ref: 'Label', default: null })
   labelId: string;
 
-  @Prop({ enum: Status, default: Status.Pending })
-  status: string;
+  @Prop({ default: Status.Pending })
+  status: Status;
 
   @Prop({ default: false })
   reminderOn: boolean;
 
   @Prop({ default: false })
-  recurring: boolean;
+  isRecurring: boolean;
 
   @Prop({ type: Date, default: null })
-  due: Date;
+  dueDate: Date;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

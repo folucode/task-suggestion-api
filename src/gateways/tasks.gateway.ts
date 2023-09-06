@@ -4,7 +4,6 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
@@ -12,8 +11,7 @@ import { Server } from 'socket.io';
   },
 })
 export class TasksGateway {
-  @WebSocketServer()
-  server: Server;
+  @WebSocketServer() server;
 
   @SubscribeMessage('handleTask')
   handleTask(@MessageBody() data: { eventType: string; data }) {
