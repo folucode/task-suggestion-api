@@ -6,7 +6,7 @@ import { SignUpDto } from 'src/dto/auth.dto';
 import { Response, Status } from 'src/utils/response.utils';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/models/user.entity';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 
 @Injectable()
 export class AuthService {
@@ -89,6 +89,7 @@ export class AuthService {
     const hash = await hashPassword(password);
 
     const userData = await this.usersModel.create({
+      userId: new mongoose.mongo.ObjectId().toString(),
       username,
       email,
       fullName,
@@ -111,7 +112,7 @@ export class AuthService {
       data: {
         status: Status.Success,
         message: 'sign up was successful',
-        data: { accessToken, user: JSON.stringify(user) },
+        data: { accessToken, user },
       },
     };
   }
