@@ -1,9 +1,4 @@
-import {
-  HttpStatus,
-  Inject,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from './users.service';
 import { hashPassword, isPasswordMatch } from 'src/utils/auth.utils';
@@ -22,9 +17,9 @@ export class AuthService {
   ) {}
 
   async signIn(username: string, password: string): Promise<Response> {
-    const user = await this.usersModel.findOne({ username });
+    const userExists = await this.usersModel.findOne({ username });
 
-    if (!user) {
+    if (!userExists) {
       return {
         statusCode: HttpStatus.NOT_FOUND,
         data: {
@@ -35,7 +30,7 @@ export class AuthService {
       };
     }
 
-    const passwordMatch = await isPasswordMatch(password, user.password);
+    const passwordMatch = await isPasswordMatch(password, userExists.password);
 
     if (!passwordMatch) {
       return {
@@ -49,8 +44,11 @@ export class AuthService {
     }
 
     const accessToken = await this.jwtService.signAsync({
-      username: user.username,
-      userId: user.userId,
+      username: userExists.username,
+      userId: userExists.userId,
+      email: userExists.email,
+      fullName: userExists.fullName,
+      timezone: userExists.timezone,
     });
 
     return {
@@ -58,7 +56,16 @@ export class AuthService {
       data: {
         status: Status.Success,
         message: 'login successful',
-        data: { accessToken },
+        data: {
+          accessToken,
+          user: {
+            username: userExists.username,
+            userId: userExists.userId,
+            email: userExists.email,
+            fullName: userExists.fullName,
+            timezone: userExists.timezone,
+          },
+        },
       },
     };
   }
@@ -66,9 +73,9 @@ export class AuthService {
   async signUp(data: SignUpDto): Promise<Response> {
     const { username, email, fullName, timezone, password } = data;
 
-    const user = await this.usersService.findByUsername(username);
+    const userExists = await this.usersService.findByUsername(username);
 
-    if (user) {
+    if (userExists) {
       return {
         statusCode: HttpStatus.FORBIDDEN,
         data: {
@@ -97,12 +104,14 @@ export class AuthService {
       fullName,
     });
 
+    const { password: userPassword, ...user } = data;
+
     return {
       statusCode: HttpStatus.CREATED,
       data: {
         status: Status.Success,
         message: 'sign up was successful',
-        data: { accessToken, username },
+        data: { accessToken, user: JSON.stringify(user) },
       },
     };
   }

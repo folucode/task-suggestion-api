@@ -57,8 +57,6 @@ export class TasksService {
   ) {}
 
   async create(data: CreateTask, userId: string) {
-    console.log(data);
-    
     try {
       const taskId = new mongoose.mongo.ObjectId().toString();
 
@@ -167,6 +165,14 @@ export class TasksService {
         },
       },
       {
+        $lookup: {
+          from: 'recurringTasks',
+          localField: 'taskId',
+          foreignField: 'taskId',
+          as: 'recurringFrequency',
+        },
+      },
+      {
         $group: {
           _id: '$status',
           tasks: { $push: '$$ROOT' },
@@ -221,13 +227,16 @@ export class TasksService {
           message: ' this task does not exist',
           data: null,
         });
+        return;
       }
 
       const { reminderTime, ...data } = updateTaskData;
 
-      await this.taskModel
-        .findOneAndUpdate({ taskId }, { data })
-        .select(['- _id', '- id']);
+      await this.taskModel.findOneAndUpdate(
+        { taskId },
+        { ...data },
+        { new: true },
+      );
 
       this.tasksGateway.server.emit('updateTask', {
         status: Status.Success,
@@ -280,6 +289,9 @@ export class TasksService {
       this.tasksGateway.server.emit('completeTask', {
         status: Status.Success,
         message: 'task updated successfully',
+        data: {
+          taskId,
+        },
       });
     } catch (error) {
       this.tasksGateway.server.emit('completeTask', {
@@ -298,7 +310,10 @@ export class TasksService {
           status: Status.Failure,
           message: 'this task does not exist',
         });
+        return;
       }
+
+      const taskStatus = task.status;
 
       const d = await this.taskModel.deleteOne({ taskId, userId });
 
@@ -307,6 +322,7 @@ export class TasksService {
           status: Status.Failure,
           message: 'could not delete task, something went wrong',
         });
+        return;
       }
 
       await this.subtaskModel.deleteMany({ parentTaskId: taskId });
@@ -314,7 +330,7 @@ export class TasksService {
       this.tasksGateway.server.emit('deleteTask', {
         status: Status.Success,
         message: 'task deleted successfully',
-        data: taskId,
+        data: { taskId, taskStatus },
       });
     } catch (error) {
       this.tasksGateway.server.emit('deleteTask', {

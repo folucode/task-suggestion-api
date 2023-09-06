@@ -54,3 +54,9 @@ TaskSchema.virtual('reminders', {
   localField: 'taskId',
   foreignField: 'taskId',
 });
+
+TaskSchema.virtual('recurringTasks', {
+  ref: 'RecurringTask',
+  localField: 'taskId',
+  foreignField: 'taskId',
+});
