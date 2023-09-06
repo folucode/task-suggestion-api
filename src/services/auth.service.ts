@@ -73,7 +73,7 @@ export class AuthService {
   async signUp(data: SignUpDto): Promise<Response> {
     const { username, email, fullName, timezone, password } = data;
 
-    const userExists = await this.usersService.findByUsername(username);
+    const userExists = await this.usersModel.findOne({ username });
 
     if (userExists) {
       return {

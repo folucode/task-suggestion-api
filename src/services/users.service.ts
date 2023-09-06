@@ -37,12 +37,13 @@ export class UsersService {
 
   async findByUsername(username: string): Promise<Response> {
     const user = await this.userModel.findOne({ username });
+    console.log(user);
 
     if (user == null) {
       return {
         statusCode: HttpStatus.OK,
         data: {
-          status: Status.Success,
+          status: Status.Failure,
           message: 'username is available',
           data: null,
         },
