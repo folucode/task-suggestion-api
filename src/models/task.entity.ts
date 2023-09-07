@@ -60,3 +60,9 @@ TaskSchema.virtual('recurringTasks', {
   localField: 'taskId',
   foreignField: 'taskId',
 });
+
+TaskSchema.virtual('labels', {
+  ref: 'Label',
+  localField: 'labelId',
+  foreignField: 'labelId',
+});

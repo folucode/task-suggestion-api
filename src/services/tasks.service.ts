@@ -69,6 +69,7 @@ export class TasksService {
       task.dueDate = data.dueDate;
       task.reminderOn = data.reminderOn;
       task.isRecurring = data.isRecurring;
+      task.labelId = data.labelId;
 
       await this.taskModel.create(task);
 
@@ -170,6 +171,14 @@ export class TasksService {
           localField: 'taskId',
           foreignField: 'taskId',
           as: 'recurringFrequency',
+        },
+      },
+      {
+        $lookup: {
+          from: 'labels',
+          localField: 'labelId',
+          foreignField: 'labelId',
+          as: 'label',
         },
       },
       {
