@@ -13,6 +13,9 @@ export class Label {
 
   @Prop({ required: true })
   name: string;
+
+  @Prop({ required: true })
+  color: string;
 }
 
 export const LabelSchema = SchemaFactory.createForClass(Label);

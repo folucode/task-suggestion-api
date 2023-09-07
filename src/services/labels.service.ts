@@ -14,11 +14,8 @@ export class LabelsService {
     @Inject(LabelsGateway) private readonly labelsGateway: LabelsGateway,
   ) {}
 
-  async findAll(user): Promise<Response> {
-    const labels = await this.labelModel
-      .find({ userId: user.userId })
-      .lean(true)
-      .exec();
+  async findAll(userId: string): Promise<Response> {
+    const labels = await this.labelModel.find({ userId }).lean(true).exec();
 
     return {
       statusCode: HttpStatus.OK,
@@ -37,33 +34,24 @@ export class LabelsService {
     });
 
     if (labelExists != null) {
-      this.labelsGateway.server.emit('handleLabels', {
-        eventType: 'createLabel',
-        data: {
-          status: Status.Failure,
-          message: 'label already exists',
-          data: null,
-        },
+      this.labelsGateway.server.emit('createLabel', {
+        status: Status.Failure,
+        message: 'label already exists',
       });
     }
 
     const label = new Label();
     label.name = data.name;
     label.userId = userId;
+    label.color = data.color;
     label.labelId = new mongoose.mongo.ObjectId().toString();
 
-    const labelData = await this.labelModel.create(label);
+    await this.labelModel.create(label);
 
-    if (labelData) {
-      this.labelsGateway.server.emit('handleLabels', {
-        eventType: 'createLabel',
-        data: {
-          status: Status.Success,
-          message: 'label successfully created',
-          data: labelData,
-        },
-      });
-    }
+    this.labelsGateway.server.emit('createLabel', {
+      status: Status.Success,
+      message: 'label successfully created',
+    });
   }
 
   async findOne(labelId: string, userId: string): Promise<Response> {
@@ -97,28 +85,20 @@ export class LabelsService {
     const label = await this.labelModel.findOne({ labelId, userId });
 
     if (label == null) {
-      this.labelsGateway.server.emit('handleLabels', {
-        eventType: 'updateLabel',
-        data: {
-          status: Status.Failure,
-          message: 'this label does not exist',
-          data: null,
-        },
+      this.labelsGateway.server.emit('editLabel', {
+        status: Status.Failure,
+        message: 'this label does not exist',
       });
     }
 
-    const updatedLabel = await this.labelModel.findOneAndUpdate(
+    await this.labelModel.findOneAndUpdate(
       { labelId, userId },
-      { ...data },
+      { $set: { ...data } },
     );
 
-    this.labelsGateway.server.emit('handleLabels', {
-      eventType: 'updateLabel',
-      data: {
-        status: Status.Success,
-        message: 'label edited successfully',
-        data: updatedLabel,
-      },
+    this.labelsGateway.server.emit('editLabel', {
+      status: Status.Success,
+      message: 'label edited successfully',
     });
   }
 
@@ -126,25 +106,17 @@ export class LabelsService {
     const label = await this.labelModel.findOne({ labelId, userId });
 
     if (label == null) {
-      this.labelsGateway.server.emit('handleLabels', {
-        eventType: 'updateLabel',
-        data: {
-          status: Status.Failure,
-          message: 'this label does not exist',
-          data: null,
-        },
+      this.labelsGateway.server.emit('deleteLabel', {
+        status: Status.Failure,
+        message: 'this label does not exist',
       });
     }
 
     await this.labelModel.deleteOne({ userId, labelId });
 
-    this.labelsGateway.server.emit('handleLabels', {
-      eventType: 'updateLabel',
-      data: {
-        status: Status.Success,
-        message: 'label has been deleted',
-        data: null,
-      },
+    this.labelsGateway.server.emit('deleteLabel', {
+      status: Status.Success,
+      message: 'label has been deleted',
     });
   }
 }

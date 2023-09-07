@@ -24,7 +24,9 @@ export class LabelsController {
   @Get('')
   async findAll(@Res() res: Response, @Request() req) {
     try {
-      const { statusCode, data } = await this.labelsService.findAll(req.user);
+      const { statusCode, data } = await this.labelsService.findAll(
+        req.user.userId,
+      );
 
       res.status(statusCode).json(data);
     } catch (error) {
