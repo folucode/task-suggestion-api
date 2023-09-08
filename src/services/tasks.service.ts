@@ -30,9 +30,10 @@ import {
 } from 'src/models/recurring-task.entity';
 import { TasksGateway } from 'src/gateways/tasks.gateway';
 import {
-  TaskHistory,
-  TaskHistoryDocument,
-} from 'src/models/task-history.entity';
+  Activity,
+  ActivityActions,
+  ActivityDocument,
+} from 'src/models/activity.entity';
 
 @Injectable()
 export class TasksService {
@@ -52,13 +53,15 @@ export class TasksService {
     @InjectModel(RecurringTask.name)
     private readonly recurringTaskModel: Model<RecurringTaskDocument>,
     private readonly tasksGateway: TasksGateway,
-    @InjectModel(TaskHistory.name)
-    private readonly taskHistoryModel: Model<TaskHistoryDocument>,
+    @InjectModel(Activity.name)
+    private readonly ActivityModel: Model<ActivityDocument>,
   ) {}
 
   async create(data: CreateTask, userId: string) {
     try {
       const taskId = new mongoose.mongo.ObjectId().toString();
+
+      const activityId = new mongoose.mongo.ObjectId().toString();
 
       const task = new Task();
       task.taskId = taskId;
@@ -67,13 +70,11 @@ export class TasksService {
       task.userId = userId;
       task.priority = data.priority;
       task.dueDate = data.dueDate;
-      task.reminderOn = data.reminderOn;
-      task.isRecurring = data.isRecurring;
       task.labelId = data.labelId;
 
       await this.taskModel.create(task);
 
-      if (data.reminderOn) {
+      if (data.reminderTime) {
         const timeInISO = new Date(data.reminderTime).toISOString();
 
         await this.reminderModel.create({
@@ -85,41 +86,8 @@ export class TasksService {
         });
       }
 
-      if (data.isRecurring) {
-        let nextDate = '';
-
-        switch (data.recurringFrequency) {
-          case RecurringTaskFrequency.DAILY:
-            nextDate = moment().utc().add(1, 'd').toISOString();
-            break;
-          case RecurringTaskFrequency.WEEKLY:
-            nextDate = moment().utc().add(1, 'w').toISOString();
-            break;
-          case RecurringTaskFrequency.HOURLY:
-            nextDate = moment().utc().add(1, 'h').toISOString();
-            break;
-          case RecurringTaskFrequency.WEEKDAYS:
-            nextDate = moment()
-              .utc()
-              .day(this.nextWeekday(moment().utc()))
-              .toISOString();
-            break;
-          case RecurringTaskFrequency.FORTNIGHTLY:
-            nextDate = moment().utc().add(2, 'w').toISOString();
-            break;
-          case RecurringTaskFrequency.MONTHLY:
-            nextDate = moment().utc().add(1, 'M').toISOString();
-            break;
-          case RecurringTaskFrequency.EVERY_3_MONTHS:
-            nextDate = moment().utc().add(3, 'M').toISOString();
-            break;
-          case RecurringTaskFrequency.EVERY_6_MONTHS:
-            nextDate = moment().utc().add(6, 'M').toISOString();
-            break;
-          case RecurringTaskFrequency.YEARLY:
-            nextDate = moment().utc().add(1, 'y').toISOString();
-            break;
-        }
+      if (data.recurringFrequency) {
+        const nextDate = this.getNextRecurringDate(data.recurringFrequency);
 
         const recurringTask = new RecurringTask();
         recurringTask.recurringTaskId =
@@ -131,7 +99,15 @@ export class TasksService {
         await this.recurringTaskModel.create(recurringTask);
       }
 
-      await this.taskModel.find({ userId });
+      await this.ActivityModel.create({
+        activityId,
+        userId,
+        comment: 'You added a new task:',
+        newValue: data.name,
+        date: new Date().toDateString(),
+        action: ActivityActions.ADDED_TASK,
+        time: this.convertTo12HourFormat(Date.now()),
+      });
 
       this.tasksGateway.server.emit('createTask', {
         status: Status.Success,
@@ -234,18 +210,147 @@ export class TasksService {
         this.tasksGateway.server.emit('updateTask', {
           status: Status.Failure,
           message: ' this task does not exist',
-          data: null,
         });
         return;
       }
 
-      const { reminderTime, ...data } = updateTaskData;
+      const reminder = await this.reminderModel.findOne({
+        taskId,
+      });
+
+      if (updateTaskData.reminderTime) {
+        const activityId = new mongoose.mongo.ObjectId().toString();
+
+        const activityData = {
+          activityId,
+          userId,
+          comment: '',
+          newValue: 'data.name',
+          date: new Date().toDateString(),
+          action: ActivityActions.UPDATED_TASK,
+          time: this.convertTo12HourFormat(Date.now()),
+        };
+
+        const timeInISO = new Date(updateTaskData.reminderTime).toISOString();
+
+        if (reminder !== null) {
+          await this.reminderModel.findOneAndUpdate(
+            { taskId },
+            { $set: { time: moment(timeInISO).utc().toString() } },
+            { new: true },
+          );
+
+          activityData.comment = `You changed the reminder of task <i>${task.name}<i/> to:`;
+          activityData['oldValue'] = reminder.time;
+          activityData.newValue = moment(timeInISO).utc().toString();
+
+          await this.ActivityModel.create(activityData);
+        } else {
+          await this.reminderModel.create({
+            reminderId: new mongoose.mongo.ObjectId().toString(),
+            taskId,
+            userId,
+            time: moment(timeInISO).utc().toString(),
+            sent: false,
+          });
+
+          activityData.comment = `You added a reminder to task <i>${task.name}<i/>:`;
+          activityData.newValue = moment(timeInISO).utc().toString();
+
+          await this.ActivityModel.create(activityData);
+        }
+      }
+
+      if (updateTaskData.recurringFrequency) {
+        const nextDate = this.getNextRecurringDate(
+          updateTaskData.recurringFrequency,
+        );
+
+        const activityId = new mongoose.mongo.ObjectId().toString();
+
+        const activityData = {
+          activityId,
+          userId,
+          comment: '',
+          newValue: 'data.name',
+          date: new Date().toDateString(),
+          action: ActivityActions.UPDATED_TASK,
+          time: this.convertTo12HourFormat(Date.now()),
+        };
+
+        const recurringFrequency = await this.recurringTaskModel.findOne({
+          taskId,
+        });
+
+        if (recurringFrequency) {
+          await this.recurringTaskModel.findOneAndUpdate(
+            { taskId },
+            {
+              $set: { frequency: updateTaskData.recurringFrequency, nextDate },
+            },
+            { new: true },
+          );
+
+          activityData.comment = `You change the recurring frequency of task <i>${task.name}<i/> to:`;
+          activityData['oldValue'] = recurringFrequency.frequency;
+          activityData.newValue = updateTaskData.recurringFrequency;
+
+          await this.ActivityModel.create(activityData);
+        } else {
+          const recurringTask = new RecurringTask();
+
+          recurringTask.recurringTaskId =
+            new mongoose.Types.ObjectId().toString();
+          recurringTask.frequency = updateTaskData.recurringFrequency;
+          recurringTask.taskId = taskId;
+          recurringTask.nextDate = nextDate;
+
+          await this.recurringTaskModel.create(recurringTask);
+
+          activityData.comment = `You add a recurring frequency to task <i>${task.name}<i/> to:`;
+          activityData.newValue = updateTaskData.recurringFrequency;
+
+          await this.ActivityModel.create(activityData);
+        }
+      }
+
+      const { reminderTime, recurringFrequency, ...data } = updateTaskData;
 
       await this.taskModel.findOneAndUpdate(
         { taskId },
-        { ...data },
+        { $set: { ...data } },
         { new: true },
       );
+
+      const activityData = Object.keys(data).map((update) => {
+        const activityId = new mongoose.mongo.ObjectId().toString();
+
+        const activityData = {
+          activityId,
+          userId,
+          comment: '',
+          oldValue: '',
+          newValue: '',
+          date: new Date().toDateString(),
+          action: ActivityActions.UPDATED_TASK,
+          time: this.convertTo12HourFormat(Date.now()),
+        };
+
+        if (task[update] == null || task[update] == '') {
+          activityData.comment = `You added a ${update} to task <i>${task.name}<i/>:`;
+          activityData.newValue = data[update];
+
+          return activityData;
+        } else {
+          activityData.comment = `You changed the ${update} of task <i>${task.name}<i/> to:`;
+          activityData.oldValue = task[update];
+          activityData.newValue = data[update];
+
+          return activityData;
+        }
+      });
+
+      await this.ActivityModel.create(activityData);
 
       this.tasksGateway.server.emit('updateTask', {
         status: Status.Success,
@@ -261,12 +366,6 @@ export class TasksService {
 
   async markAsDone(taskId: string, userId: string) {
     try {
-      const taskHistoryId = new mongoose.Types.ObjectId().toString();
-
-      const timeInISO = new Date().toISOString();
-
-      const dateCompleted = moment(timeInISO).utc().toString();
-
       const task = await this.taskModel.findOne({
         taskId,
         userId,
@@ -288,19 +387,23 @@ export class TasksService {
         { $set: { status: TaskStatus.Completed } },
       );
 
-      await this.taskHistoryModel.create({
+      const activityId = new mongoose.Types.ObjectId().toString();
+
+      const activityData = {
+        activityId,
         userId,
-        taskId,
-        taskHistoryId,
-        dateCompleted,
-      });
+        comment: `you completed a task:`,
+        newValue: task.name,
+        date: new Date().toDateString(),
+        action: ActivityActions.COMPLETED_TASK,
+        time: this.convertTo12HourFormat(Date.now()),
+      };
+
+      await this.ActivityModel.create(activityData);
 
       this.tasksGateway.server.emit('completeTask', {
         status: Status.Success,
         message: 'task updated successfully',
-        data: {
-          taskId,
-        },
       });
     } catch (error) {
       this.tasksGateway.server.emit('completeTask', {
@@ -336,10 +439,23 @@ export class TasksService {
 
       await this.subtaskModel.deleteMany({ parentTaskId: taskId });
 
+      const activityId = new mongoose.Types.ObjectId().toString();
+
+      const activityData = {
+        activityId,
+        userId,
+        comment: `you deleted a task:`,
+        newValue: task.name,
+        date: new Date().toDateString(),
+        action: ActivityActions.DELETED_TASK,
+        time: this.convertTo12HourFormat(Date.now()),
+      };
+
+      await this.ActivityModel.create(activityData);
+
       this.tasksGateway.server.emit('deleteTask', {
         status: Status.Success,
         message: 'task deleted successfully',
-        data: { taskId, taskStatus },
       });
     } catch (error) {
       this.tasksGateway.server.emit('deleteTask', {
@@ -660,9 +776,65 @@ export class TasksService {
     // 3. update check parameter to check if a particular notification has been sent
   }
 
+  // Helper functions
   nextWeekday = (date) => {
     const dayOfWeek = date.add(1, 'd').weekday();
 
     return dayOfWeek === 6 ? 6 + 2 : dayOfWeek;
+  };
+
+  convertTo12HourFormat = (timestamp) => {
+    const inputDate = new Date(timestamp);
+
+    const hours = inputDate.getHours();
+    const minutes = inputDate.getMinutes();
+
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12;
+
+    const formattedTime = `${formattedHours}:${minutes
+      .toString()
+      .padStart(2, '0')} ${ampm}`;
+
+    return formattedTime;
+  };
+
+  getNextRecurringDate = (recurringFrequency) => {
+    let nextDate = '';
+
+    switch (recurringFrequency) {
+      case RecurringTaskFrequency.DAILY:
+        nextDate = moment().utc().add(1, 'd').toISOString();
+        break;
+      case RecurringTaskFrequency.WEEKLY:
+        nextDate = moment().utc().add(1, 'w').toISOString();
+        break;
+      case RecurringTaskFrequency.HOURLY:
+        nextDate = moment().utc().add(1, 'h').toISOString();
+        break;
+      case RecurringTaskFrequency.WEEKDAYS:
+        nextDate = moment()
+          .utc()
+          .day(this.nextWeekday(moment().utc()))
+          .toISOString();
+        break;
+      case RecurringTaskFrequency.FORTNIGHTLY:
+        nextDate = moment().utc().add(2, 'w').toISOString();
+        break;
+      case RecurringTaskFrequency.MONTHLY:
+        nextDate = moment().utc().add(1, 'M').toISOString();
+        break;
+      case RecurringTaskFrequency.EVERY_3_MONTHS:
+        nextDate = moment().utc().add(3, 'M').toISOString();
+        break;
+      case RecurringTaskFrequency.EVERY_6_MONTHS:
+        nextDate = moment().utc().add(6, 'M').toISOString();
+        break;
+      case RecurringTaskFrequency.YEARLY:
+        nextDate = moment().utc().add(1, 'y').toISOString();
+        break;
+    }
+
+    return nextDate;
   };
 }

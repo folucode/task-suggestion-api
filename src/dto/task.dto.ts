@@ -17,9 +17,7 @@ export interface CreateTask {
   priority: Priority;
   dueDate?: Date;
   labelId?: string;
-  reminderOn?: boolean;
   reminderTime?: string;
-  isRecurring?: boolean;
   recurringFrequency?: RecurringTaskFrequency;
 }
 
@@ -30,9 +28,8 @@ export interface UpdateTask {
   status?: Status;
   priority?: Priority;
   dueDate?: Date;
-  reminderOn?: boolean;
-  reminderTime?: [string];
-  isRecurring?: boolean;
+  reminderTime?: string;
+  recurringFrequency?: RecurringTaskFrequency;
 }
 
 export interface CreateSubtask {

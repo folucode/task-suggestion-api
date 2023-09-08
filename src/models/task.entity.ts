@@ -22,7 +22,7 @@ export class Task {
   @Prop({ default: null })
   priority: Priority;
 
-  @Prop({ text: true, default: null })
+  @Prop({ default: null })
   description: string;
 
   @Prop({ ref: 'Label', default: null })
@@ -30,12 +30,6 @@ export class Task {
 
   @Prop({ default: Status.Pending })
   status: Status;
-
-  @Prop({ default: false })
-  reminderOn: boolean;
-
-  @Prop({ default: false })
-  isRecurring: boolean;
 
   @Prop({ type: Date, default: null })
   dueDate: Date;
