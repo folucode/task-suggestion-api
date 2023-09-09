@@ -15,7 +15,11 @@ export class LabelsService {
   ) {}
 
   async findAll(userId: string): Promise<Response> {
-    const labels = await this.labelModel.find({ userId }).lean(true).exec();
+    const labels = await this.labelModel
+      .find({ userId })
+      .lean(true)
+      .sort({ createdAt: -1, updatedAt: -1 })
+      .exec();
 
     return {
       statusCode: HttpStatus.OK,

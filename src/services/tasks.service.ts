@@ -119,51 +119,53 @@ export class TasksService {
   }
 
   async findAll(userId: string): Promise<Response> {
-    const tasks = await this.taskModel.aggregate([
-      {
-        $match: {
-          userId,
+    const tasks = await this.taskModel
+      .aggregate([
+        {
+          $match: {
+            userId,
+          },
         },
-      },
-      {
-        $lookup: {
-          from: 'subtasks',
-          localField: 'taskId',
-          foreignField: 'parentTaskId',
-          as: 'subtasks',
+        {
+          $lookup: {
+            from: 'subtasks',
+            localField: 'taskId',
+            foreignField: 'parentTaskId',
+            as: 'subtasks',
+          },
         },
-      },
-      {
-        $lookup: {
-          from: 'reminders',
-          localField: 'taskId',
-          foreignField: 'taskId',
-          as: 'reminders',
+        {
+          $lookup: {
+            from: 'reminders',
+            localField: 'taskId',
+            foreignField: 'taskId',
+            as: 'reminders',
+          },
         },
-      },
-      {
-        $lookup: {
-          from: 'recurringTasks',
-          localField: 'taskId',
-          foreignField: 'taskId',
-          as: 'recurringFrequency',
+        {
+          $lookup: {
+            from: 'recurringTasks',
+            localField: 'taskId',
+            foreignField: 'taskId',
+            as: 'recurringFrequency',
+          },
         },
-      },
-      {
-        $lookup: {
-          from: 'labels',
-          localField: 'labelId',
-          foreignField: 'labelId',
-          as: 'label',
+        {
+          $lookup: {
+            from: 'labels',
+            localField: 'labelId',
+            foreignField: 'labelId',
+            as: 'label',
+          },
         },
-      },
-      {
-        $group: {
-          _id: '$status',
-          tasks: { $push: '$$ROOT' },
+        {
+          $group: {
+            _id: '$status',
+            tasks: { $push: '$$ROOT' },
+          },
         },
-      },
-    ]);
+      ])
+      .sort({ createdAt: -1, updatedAt: -1 });
 
     return {
       statusCode: HttpStatus.OK,
@@ -392,8 +394,7 @@ export class TasksService {
       const activityData = {
         activityId,
         userId,
-        comment: `you completed a task:`,
-        newValue: task.name,
+        comment: `you completed a task: ${task.name}`,
         date: new Date().toDateString(),
         action: ActivityActions.COMPLETED_TASK,
         time: this.convertTo12HourFormat(Date.now()),
@@ -424,8 +425,6 @@ export class TasksService {
         });
         return;
       }
-
-      const taskStatus = task.status;
 
       const d = await this.taskModel.deleteOne({ taskId, userId });
 

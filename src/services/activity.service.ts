@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Activity } from 'src/models/activity.entity';
+import { Activity, ActivityActions } from 'src/models/activity.entity';
 import { Response, Status } from 'src/utils/response.utils';
 
 @Injectable()
@@ -10,8 +10,27 @@ export class ActivityService {
     @InjectModel(Activity.name) private readonly activityModel: Model<Activity>,
   ) {}
 
-  async getActivity(userId: string): Promise<Response> {
-    const activities = await this.activityModel.find({ userId });
+  async getActivity(
+    userId: string,
+    action?: ActivityActions,
+  ): Promise<Response> {
+    const match = { userId };
+
+    if (action) {
+      match['action'] = action;
+    }
+
+    const activities = await this.activityModel
+      .aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: '$date',
+            actions: { $push: '$$ROOT' },
+          },
+        },
+      ])
+      .sort({ createdAt: -1, updatedAt: -1 });
 
     return {
       statusCode: HttpStatus.OK,
