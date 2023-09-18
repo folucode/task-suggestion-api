@@ -29,8 +29,23 @@ export class ActivityService {
             actions: { $push: '$$ROOT' },
           },
         },
+        {
+          $sort: { _id: 1 }, // Sort by _id (status) ascending
+        },
+        {
+          $unwind: '$actions',
+        },
+        {
+          $sort: { 'actions.createdAt': -1, 'actions.updatedAt': -1 }, // Sort tasks within each group
+        },
+        {
+          $group: {
+            _id: '$_id',
+            actions: { $push: '$actions' },
+          },
+        },
       ])
-      .sort({ createdAt: -1, updatedAt: -1 });
+      .sort({ _id: 1 });
 
     return {
       statusCode: HttpStatus.OK,

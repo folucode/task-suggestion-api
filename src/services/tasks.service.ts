@@ -104,7 +104,7 @@ export class TasksService {
         userId,
         comment: 'You added a new task:',
         newValue: data.name,
-        date: new Date().toDateString(),
+        date: moment().format('YYYY, MMMM Do'),
         action: ActivityActions.ADDED_TASK,
         time: this.convertTo12HourFormat(Date.now()),
       });
@@ -164,8 +164,23 @@ export class TasksService {
             tasks: { $push: '$$ROOT' },
           },
         },
+        {
+          $sort: { _id: 1 }, // Sort by _id (status) ascending
+        },
+        {
+          $unwind: '$tasks',
+        },
+        {
+          $sort: { 'tasks.createdAt': -1, 'tasks.updatedAt': -1 }, // Sort tasks within each group
+        },
+        {
+          $group: {
+            _id: '$_id',
+            tasks: { $push: '$tasks' },
+          },
+        },
       ])
-      .sort({ createdAt: -1, updatedAt: -1 });
+      .sort({ _id: 1 }); // Sort the final result by _id (status) ascending
 
     return {
       statusCode: HttpStatus.OK,
@@ -228,7 +243,7 @@ export class TasksService {
           userId,
           comment: '',
           newValue: 'data.name',
-          date: new Date().toDateString(),
+          date: moment().format('YYYY, MMMM Do'),
           action: ActivityActions.UPDATED_TASK,
           time: this.convertTo12HourFormat(Date.now()),
         };
@@ -242,7 +257,7 @@ export class TasksService {
             { new: true },
           );
 
-          activityData.comment = `You changed the reminder of task <i>${task.name}<i/> to:`;
+          activityData.comment = `You changed the reminder of task ${task.name} to:`;
           activityData['oldValue'] = reminder.time;
           activityData.newValue = moment(timeInISO).utc().toString();
 
@@ -256,7 +271,7 @@ export class TasksService {
             sent: false,
           });
 
-          activityData.comment = `You added a reminder to task <i>${task.name}<i/>:`;
+          activityData.comment = `You added a reminder to task ${task.name}:`;
           activityData.newValue = moment(timeInISO).utc().toString();
 
           await this.ActivityModel.create(activityData);
@@ -275,7 +290,7 @@ export class TasksService {
           userId,
           comment: '',
           newValue: 'data.name',
-          date: new Date().toDateString(),
+          date: moment().format('YYYY, MMMM Do'),
           action: ActivityActions.UPDATED_TASK,
           time: this.convertTo12HourFormat(Date.now()),
         };
@@ -293,7 +308,7 @@ export class TasksService {
             { new: true },
           );
 
-          activityData.comment = `You change the recurring frequency of task <i>${task.name}<i/> to:`;
+          activityData.comment = `You change the recurring frequency of task ${task.name} to:`;
           activityData['oldValue'] = recurringFrequency.frequency;
           activityData.newValue = updateTaskData.recurringFrequency;
 
@@ -309,7 +324,7 @@ export class TasksService {
 
           await this.recurringTaskModel.create(recurringTask);
 
-          activityData.comment = `You add a recurring frequency to task <i>${task.name}<i/> to:`;
+          activityData.comment = `You add a recurring frequency to task ${task.name} to:`;
           activityData.newValue = updateTaskData.recurringFrequency;
 
           await this.ActivityModel.create(activityData);
@@ -333,18 +348,18 @@ export class TasksService {
           comment: '',
           oldValue: '',
           newValue: '',
-          date: new Date().toDateString(),
+          date: moment().format('YYYY, MMMM Do'),
           action: ActivityActions.UPDATED_TASK,
           time: this.convertTo12HourFormat(Date.now()),
         };
 
         if (task[update] == null || task[update] == '') {
-          activityData.comment = `You added a ${update} to task <i>${task.name}<i/>:`;
+          activityData.comment = `You added a ${update} to task ${task.name}:`;
           activityData.newValue = data[update];
 
           return activityData;
         } else {
-          activityData.comment = `You changed the ${update} of task <i>${task.name}<i/> to:`;
+          activityData.comment = `You changed the ${update} of task ${task.name} to:`;
           activityData.oldValue = task[update];
           activityData.newValue = data[update];
 
@@ -374,14 +389,11 @@ export class TasksService {
       });
 
       if (task == null) {
-        this.tasksGateway.server.emit('handleTask', {
-          eventType: 'completeTask',
-          data: {
-            status: Status.Failure,
-            message: 'task does not exist',
-            data: null,
-          },
+        this.tasksGateway.server.emit('completeTask', {
+          status: Status.Failure,
+          message: 'task does not exist',
         });
+        return;
       }
 
       await this.taskModel.findOneAndUpdate(
@@ -395,7 +407,7 @@ export class TasksService {
         activityId,
         userId,
         comment: `you completed a task: ${task.name}`,
-        date: new Date().toDateString(),
+        date: moment().format('YYYY, MMMM Do'),
         action: ActivityActions.COMPLETED_TASK,
         time: this.convertTo12HourFormat(Date.now()),
       };
@@ -445,7 +457,7 @@ export class TasksService {
         userId,
         comment: `you deleted a task:`,
         newValue: task.name,
-        date: new Date().toDateString(),
+        date: moment().format('YYYY, MMMM Do'),
         action: ActivityActions.DELETED_TASK,
         time: this.convertTo12HourFormat(Date.now()),
       };

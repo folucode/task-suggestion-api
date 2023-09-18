@@ -8,6 +8,8 @@ export type TaskDocument = HydratedDocument<Task>;
 @Schema({
   toJSON: { virtuals: true, getters: true },
   toObject: { virtuals: true, getters: true },
+  timestamps: true,
+  collection: 'tasks',
 })
 export class Task {
   @Prop({ required: true })
